@@ -1,16 +1,24 @@
 import { Client, ClientOptions } from 'discord.js';
-import { OptionalWebSocketManagerOptions } from '@discordjs/ws';
+import { OptionalWebSocketManagerOptions, WebSocketManager, IdentifyThrottler } from '@discordjs/ws';
 import { WebsocketProxy } from './ws/WebsocketProxy';
 
-export interface VanguardWorkerOptions {
+export type Constructor<T> = new (...args: any[]) => T;
+
+export abstract class VanguardIdentifyThrottler extends IdentifyThrottler {
+    abstract waitForIdentify(): Promise<void>;
+    abstract waitForIdentify(shardId: number): Promise<void>;
+}
+
+export interface OptionalVanguardWorkerOptions {
 	shardsPerWorker?: number | 'all',
 	workerPath?: string;
+    identifyThrottler?: Constructor<VanguardIdentifyThrottler>;
 }
 
 export class Vanguard extends Client {
     // @ts-expect-error: private properties modified
     public readonly ws: WebsocketProxy;
-    constructor(options: ClientOptions, sharderOptions?: OptionalWebSocketManagerOptions, workerOptions?: VanguardWorkerOptions) {
+    constructor(options: ClientOptions, sharderOptions?: OptionalWebSocketManagerOptions, workerOptions?: OptionalVanguardWorkerOptions) {
         super(options);
         // @ts-expect-error: private properties modified
         this.ws = new WebsocketProxy(this, sharderOptions, workerOptions);

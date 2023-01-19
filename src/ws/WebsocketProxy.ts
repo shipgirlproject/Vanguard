@@ -1,8 +1,9 @@
 import { join } from 'node:path';
 import { Collection, Client, Status, CloseEvent, Events as ClientEvents, WebSocketManager as Legacy, WebSocketShardEvents as LegacyEvents } from 'discord.js';
-import { Encoding, WebSocketShardEvents, WorkerShardingStrategy,WebSocketShardDestroyRecovery, WorkerShardingStrategyOptions, WebSocketManager as Updated, OptionalWebSocketManagerOptions, RequiredWebSocketManagerOptions } from '@discordjs/ws';
+import { WebSocketShardEvents, WorkerShardingStrategy,WebSocketShardDestroyRecovery, WebSocketManager as Updated, OptionalWebSocketManagerOptions, RequiredWebSocketManagerOptions } from '@discordjs/ws';
 import { WebsocketShardProxy } from './WebsocketShardProxy';
-import { VanguardWorkerOptions } from '../Vanguard';
+import { VanguardWorkerShardingStrategy } from '../strategy/VanguardWorkerShardingStrategy';
+import { Constructor, OptionalVanguardWorkerOptions, VanguardIdentifyThrottler } from '../Vanguard';
 
 export interface CustomCloseData {
     code: number;
@@ -13,14 +14,20 @@ export interface CustomCloseData {
     }
 }
 
+export interface VanguardWorkerOptions {
+	shardsPerWorker: number | 'all',
+	workerPath: string;
+    identifyThrottler?: Constructor<VanguardIdentifyThrottler>;
+}
+
 // @ts-expect-error: private properties modified
 export class WebsocketProxy extends Legacy {
     public readonly manager: Updated;
-    /// @ts-expect-error: private properties modified
+    // @ts-expect-error: private properties modified
     public readonly shards: Collection<number, WebsocketShardProxy>;
     private readonly workerOptions: VanguardWorkerOptions;
     private eventsAttached: boolean;
-    constructor(client: Client, sharderOptions: OptionalWebSocketManagerOptions, workerOptions?: VanguardWorkerOptions) {
+    constructor(client: Client, sharderOptions: OptionalWebSocketManagerOptions, workerOptions?: OptionalVanguardWorkerOptions) {
         super(client);
         this.manager = new Updated(this.createSharderOptions(sharderOptions));
         this.shards = new Collection();
@@ -38,8 +45,12 @@ export class WebsocketProxy extends Legacy {
         };
     }
 
-    private createWorkerOptions(options: VanguardWorkerOptions|undefined): VanguardWorkerOptions {
-        return { shardsPerWorker: options?.shardsPerWorker ?? 'all', workerPath: options?.workerPath || join(__dirname, '../worker/DefaultWorker.js') };
+    private createWorkerOptions(options: OptionalVanguardWorkerOptions|undefined): VanguardWorkerOptions {
+        return {
+            shardsPerWorker: options?.shardsPerWorker || 'all',
+            workerPath: options?.workerPath || join(__dirname, '../worker/DefaultWorker.js'),
+            identifyThrottler: options?.identifyThrottler
+        };
     }
 
     private getOrAutomaticallyCreateShard(id: number): WebsocketShardProxy {
@@ -123,9 +134,9 @@ export class WebsocketProxy extends Legacy {
             this.debug(`[Info] Spawn settings\n        Shards: [ ${this.manager.options.shardIds.join(', ')} ]\n        Shard Count: ${this.manager.options.shardIds.length}\n        Total Shards: ${this.client.options.shardCount}`);
         }
         this.attachEventsToWebsocketManager();
-        const strategy = new WorkerShardingStrategy(this.manager, this.workerOptions as unknown as WorkerShardingStrategyOptions);
+        const strategy = new VanguardWorkerShardingStrategy(this.manager, this.workerOptions);
         this.manager.setStrategy(strategy);
-        this.debug(`[Info] Using worker shading strategy\n        Workers: ${this.workerOptions.shardsPerWorker}\n        File Dir: ${this.workerOptions.workerPath}`);
+        this.debug(`[Info] Using Vanguard worker shading strategy\n        Workers: ${this.workerOptions.shardsPerWorker}\n        File Dir: ${this.workerOptions.workerPath}\n        Using custom identify throttling: ${!!this.workerOptions.identifyThrottler}`);
         for (let i = 0; i < this.manager.options.shardCount; i++)
             this.getOrAutomaticallyCreateShard(i);
         await this.manager.connect();

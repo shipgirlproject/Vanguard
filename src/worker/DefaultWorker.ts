@@ -1,4 +1,3 @@
-
 import { VanguardBootstrap } from './VanguardBootstrap';
 
 const bootstrapper = new VanguardBootstrap();
