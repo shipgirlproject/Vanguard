@@ -101,7 +101,7 @@ export class WebsocketProxy extends Legacy {
             // d.js has this kind of manager event firing for some reason that I don't know for now
             this.emit(packet.data.t, packet.data.d, packet.shardId);
             // @ts-expect-error: forward dispatch events to the shard for d.js to work
-            shard.onPacket(data.data);
+            shard.onPacket(packet.data);
         });
         this.manager.on(WebSocketShardEvents.Debug, data => this.client.emit(ClientEvents.Debug, `[WS => Shard ${data.shardId} => Worker] ${data.message}`));
         this.eventsAttached = true;
