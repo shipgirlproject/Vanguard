@@ -29,7 +29,7 @@ export abstract class VanguardIdentifyManager {
 export class Vanguard extends Client {
     // @ts-expect-error: private properties modified
     public readonly ws: WebsocketProxy;
-    constructor(options: ClientOptions, vanguardOptions: VanguardOptions) {
+    constructor(options: ClientOptions, vanguardOptions: VanguardOptions = {}) {
         super(options);
         // @ts-expect-error: private properties modified
         this.ws = new WebsocketProxy(this, vanguardOptions);

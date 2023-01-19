@@ -39,7 +39,7 @@ export class WebsocketProxy extends Legacy {
     private readonly workerOptions: VanguardWorkerOptions;
     private readonly disableBeforeReadyPacketQueue: boolean;
     private eventsAttached: boolean;
-    constructor(client: Client, vanguardOptions: VanguardOptions) {
+    constructor(client: Client, vanguardOptions: VanguardOptions = {}) {
         super(client);
         this.manager = new Updated(this.createSharderOptions(vanguardOptions.sharderOptions));
         this.shards = new Collection();
