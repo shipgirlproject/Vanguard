@@ -1,4 +1,11 @@
-import { WorkerShardingStrategy, WebSocketManager, WorkerSendPayloadOp, WorkerSendPayload, WorkerReceivePayloadOp, WorkerReceivePayload } from '@discordjs/ws';
+import {
+    WorkerShardingStrategy,
+    WebSocketManager,
+    WorkerSendPayloadOp,
+    WorkerSendPayload,
+    WorkerReceivePayloadOp,
+    WorkerReceivePayload
+} from '@discordjs/ws';
 import { VanguardWorkerReceivePayload } from '../worker/VanguardFetchingStrategy';
 import { VanguardWorkerOptions, WebsocketProxy } from '../ws/WebsocketProxy';
 

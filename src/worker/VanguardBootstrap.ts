@@ -1,5 +1,11 @@
 import { parentPort } from 'node:worker_threads';
-import { WorkerBootstrapper, BootstrapOptions, WorkerContextFetchingStrategy, WorkerReceivePayloadOp, WebSocketShardEvents, WebSocketShard } from '@discordjs/ws';
+import {
+    WorkerBootstrapper,
+    BootstrapOptions,
+    WorkerReceivePayloadOp,
+    WebSocketShardEvents,
+    WebSocketShard
+} from '@discordjs/ws';
 import { WebsocketShard } from '../ws/WebsocketShard';
 import { VanguardFetchingStrategy } from './VanguardFetchingStrategy';
 

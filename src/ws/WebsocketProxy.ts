@@ -1,6 +1,20 @@
 import { join } from 'node:path';
-import { WebSocketShard, Collection, Client, Status, CloseEvent, Events as ClientEvents, WebSocketManager as Legacy, WebSocketShardEvents as LegacyEvents, GatewayDispatchPayload } from 'discord.js';
-import { WebSocketShardEvents, WebSocketShardDestroyRecovery, WebSocketManager as Updated, OptionalWebSocketManagerOptions, RequiredWebSocketManagerOptions } from '@discordjs/ws';
+import { WebSocketShard,
+    Collection,
+    Client,
+    Status,
+    CloseEvent,
+    Events as ClientEvents,
+    WebSocketManager as Legacy,
+    WebSocketShardEvents as LegacyEvents,
+    GatewayDispatchPayload
+} from 'discord.js';
+import { WebSocketShardEvents,
+    WebSocketShardDestroyRecovery,
+    WebSocketManager as Updated,
+    OptionalWebSocketManagerOptions,
+    RequiredWebSocketManagerOptions
+} from '@discordjs/ws';
 import { GatewayDispatchEvents } from 'discord-api-types/v10';
 import { WebsocketShardProxy } from './WebsocketShardProxy';
 import { VanguardWorkerShardingStrategy } from '../strategy/VanguardWorkerShardingStrategy';

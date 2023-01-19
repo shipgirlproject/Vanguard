@@ -1,7 +1,14 @@
 import { once } from 'events';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { GatewayReceivePayload, GatewaySendPayload } from 'discord-api-types/v10';
-import { WebSocketShard, WebSocketShardStatus, WebSocketShardEvents, ImportantGatewayOpcodes, IContextFetchingStrategy, WebSocketShardDestroyOptions } from '@discordjs/ws';
+import { getInitialSendRateLimitState,
+    WebSocketShard,
+    WebSocketShardStatus,
+    WebSocketShardEvents,
+    ImportantGatewayOpcodes,
+    IContextFetchingStrategy,
+    WebSocketShardDestroyOptions
+} from '@discordjs/ws';
 import { lazy } from '@discordjs/util';
 
 const getZlibSync = lazy(async () => import('zlib-sync').then((mod) => mod.default).catch(() => null));
