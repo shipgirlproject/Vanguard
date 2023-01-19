@@ -159,7 +159,7 @@ export class WebsocketProxy extends Legacy {
             this.manager.options.shardCount = gateway.shards;
             this.debug(`[Info] Using Discord Recommended Shard count ${gateway.shards}`);
         } else {
-            if (isNaN(this.client.options.shardCount!)) throw new Error('Shard Count must be a number if not sauto');
+            if (isNaN(this.client.options.shardCount!)) throw new Error('Shard Count must be a number if not auto');
             if (!Array.isArray(this.client.options.shards)) throw new Error('Shards must be an array of number if not auto');
             this.manager.options.shardCount = this.client.options.shardCount!;
             this.manager.options.shardIds = this.client.options.shards as number[];
