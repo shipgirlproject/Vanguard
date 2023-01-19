@@ -1,9 +1,10 @@
 import { join } from 'node:path';
-import { Collection, Client, Status, CloseEvent, Events as ClientEvents, WebSocketManager as Legacy, WebSocketShardEvents as LegacyEvents } from 'discord.js';
-import { WebSocketShardEvents, WorkerShardingStrategy,WebSocketShardDestroyRecovery, WebSocketManager as Updated, OptionalWebSocketManagerOptions, RequiredWebSocketManagerOptions } from '@discordjs/ws';
+import { WebSocketShard, Collection, Client, Status, CloseEvent, Events as ClientEvents, WebSocketManager as Legacy, WebSocketShardEvents as LegacyEvents, GatewayDispatchPayload } from 'discord.js';
+import { WebSocketShardEvents, WebSocketShardDestroyRecovery, WebSocketManager as Updated, OptionalWebSocketManagerOptions, RequiredWebSocketManagerOptions } from '@discordjs/ws';
+import { GatewayDispatchEvents } from 'discord-api-types/v10';
 import { WebsocketShardProxy } from './WebsocketShardProxy';
 import { VanguardWorkerShardingStrategy } from '../strategy/VanguardWorkerShardingStrategy';
-import { Constructor, OptionalVanguardWorkerOptions, VanguardIdentifyThrottler } from '../Vanguard';
+import { OptionalVanguardWorkerOptions, VanguardIdentifyManager, VanguardOptions } from '../Vanguard';
 
 export interface CustomCloseData {
     code: number;
@@ -17,42 +18,54 @@ export interface CustomCloseData {
 export interface VanguardWorkerOptions {
 	shardsPerWorker: number | 'all',
 	workerPath: string;
-    identifyThrottler?: {
-        class: Constructor<VanguardIdentifyThrottler>,
-        args: unknown[]
-    }
 }
+
+export const beforeReadyWhitelist = [
+    GatewayDispatchEvents.Ready,
+    GatewayDispatchEvents.Resumed,
+    GatewayDispatchEvents.GuildCreate,
+    GatewayDispatchEvents.GuildDelete,
+    GatewayDispatchEvents.GuildMembersChunk,
+    GatewayDispatchEvents.GuildMemberAdd,
+    GatewayDispatchEvents.GuildMemberRemove,
+];
 
 // @ts-expect-error: private properties modified
 export class WebsocketProxy extends Legacy {
     public readonly manager: Updated;
     // @ts-expect-error: private properties modified
     public readonly shards: Collection<number, WebsocketShardProxy>;
+    public readonly identifyManager: VanguardIdentifyManager|undefined;
     private readonly workerOptions: VanguardWorkerOptions;
+    private readonly disableBeforeReadyPacketQueue: boolean;
     private eventsAttached: boolean;
-    constructor(client: Client, sharderOptions: OptionalWebSocketManagerOptions, workerOptions?: OptionalVanguardWorkerOptions) {
+    constructor(client: Client, vanguardOptions: VanguardOptions) {
         super(client);
-        this.manager = new Updated(this.createSharderOptions(sharderOptions));
+        this.manager = new Updated(this.createSharderOptions(vanguardOptions.sharderOptions));
         this.shards = new Collection();
-        this.workerOptions = this.createWorkerOptions(workerOptions);
+        if (vanguardOptions.identifyManager)
+            this.identifyManager = new vanguardOptions.identifyManager(this);
+        else
+            this.identifyManager = undefined;
+        this.workerOptions = this.createWorkerOptions(vanguardOptions.workerOptions);
+        this.disableBeforeReadyPacketQueue = vanguardOptions.disableBeforeReadyPacketQueue ?? false;
         this.eventsAttached = false;
     }
 
-    private createSharderOptions(sharderOptions: OptionalWebSocketManagerOptions): OptionalWebSocketManagerOptions & RequiredWebSocketManagerOptions {
-        return { ...{
+    private createSharderOptions(sharderOptions?: OptionalWebSocketManagerOptions): RequiredWebSocketManagerOptions|OptionalWebSocketManagerOptions&RequiredWebSocketManagerOptions {
+        const required = {
             token: this.client.token!, // this is null so I need to redefine token in connect
             intents: this.client.options.intents.bitfield as unknown as number,
             rest: this.client.rest
-        },
-        ... sharderOptions
         };
+        if (!sharderOptions) return required;
+        return { ...required, ...sharderOptions };
     }
 
     private createWorkerOptions(options: OptionalVanguardWorkerOptions|undefined): VanguardWorkerOptions {
         return {
             shardsPerWorker: options?.shardsPerWorker || 'all',
-            workerPath: options?.workerPath || join(__dirname, '../worker/DefaultWorker.js'),
-            identifyThrottler: options?.identifyThrottler
+            workerPath: options?.workerPath || join(__dirname, '../worker/DefaultWorker.js')
         };
     }
 
@@ -137,9 +150,9 @@ export class WebsocketProxy extends Legacy {
             this.debug(`[Info] Spawn settings\n        Shards: [ ${this.manager.options.shardIds.join(', ')} ]\n        Shard Count: ${this.manager.options.shardIds.length}\n        Total Shards: ${this.client.options.shardCount}`);
         }
         this.attachEventsToWebsocketManager();
-        const strategy = new VanguardWorkerShardingStrategy(this.manager, this.workerOptions);
+        const strategy = new VanguardWorkerShardingStrategy(this, this.manager, this.workerOptions);
         this.manager.setStrategy(strategy);
-        this.debug(`[Info] Using Vanguard worker shading strategy\n        Workers: ${this.workerOptions.shardsPerWorker}\n        File Dir: ${this.workerOptions.workerPath}\n        Using custom identify throttling: ${!!this.workerOptions.identifyThrottler}`);
+        this.debug(`[Info] Using Vanguard worker shading strategy\n        Workers: ${this.workerOptions.shardsPerWorker}\n        File Dir: ${this.workerOptions.workerPath}\n        Using custom identify throttling: ${!!this.identifyManager}`);
         for (let i = 0; i < this.manager.options.shardCount; i++)
             this.getOrAutomaticallyCreateShard(i);
         await this.manager.connect();
@@ -156,6 +169,19 @@ export class WebsocketProxy extends Legacy {
             .catch(error => this.client.emit(ClientEvents.Error, error));
     }
 
+    // @ts-expect-error: need to change the private function
+    private handlePacket(packet: GatewayDispatchPayload, shard: WebsocketShardProxy): boolean {
+        if (packet && this.status !== Status.Ready) {
+            if (!beforeReadyWhitelist.includes(packet.t)) {
+                // @ts-expect-error: need to access private property
+                if (!this.disableBeforeReadyPacketQueue) this.packetQueue.push({ packet, shard });
+                return false;
+            }
+        }
+        // @ts-expect-error: need to access private property
+        return super.handlePacket(packet, (shard as unknown as WebSocketShard));
+    }
+
     private checkShardsReady(): void {
         if (this.status === Status.Ready || this.shards.some(shard => shard.status !== Status.Ready)) return;
         // @ts-expect-error: need to access private property
@@ -163,7 +189,7 @@ export class WebsocketProxy extends Legacy {
     }
 
     // @ts-expect-error: d.js marks this as private, even though it's used on another class internally
-    protected debug(message: string, shard?: WebsocketShardProxy) {
+    protected debug(message: string, shard?: WebsocketShardProxy): void {
         this.client.emit(ClientEvents.Debug, `[WS => ${shard ? `Shard ${shard.id} => Proxy` : 'Proxy'}] ${message}`);
     }
 }
