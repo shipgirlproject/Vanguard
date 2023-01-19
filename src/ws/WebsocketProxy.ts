@@ -1,5 +1,6 @@
 import { join } from 'node:path';
-import { WebSocketShard,
+import {
+    WebSocketShard,
     Collection,
     Client,
     Status,
@@ -9,7 +10,8 @@ import { WebSocketShard,
     WebSocketShardEvents as LegacyEvents,
     GatewayDispatchPayload
 } from 'discord.js';
-import { WebSocketShardEvents,
+import {
+    WebSocketShardEvents,
     WebSocketShardDestroyRecovery,
     WebSocketManager as Updated,
     OptionalWebSocketManagerOptions,

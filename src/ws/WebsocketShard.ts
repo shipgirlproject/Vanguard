@@ -1,7 +1,8 @@
 import { once } from 'events';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { GatewayReceivePayload, GatewaySendPayload } from 'discord-api-types/v10';
-import { getInitialSendRateLimitState,
+import {
+    getInitialSendRateLimitState,
     WebSocketShard,
     WebSocketShardStatus,
     WebSocketShardEvents,
