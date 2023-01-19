@@ -110,8 +110,8 @@ export class WebsocketProxy extends Legacy {
     private async connect(): Promise<void> {
         this.manager.options.token = this.client.token!;
         const gateway = await this.manager.fetchGatewayInformation();
-        const { total, remaining } = gateway.session_start_limit;
-        this.debug(`[Info] Fetched Gateway Information\n        URL: ${gateway.url}\n        Recommended Shards: ${gateway.shards}\nSession Limit Information\n        Total: ${total}\n        Remaining: ${remaining}`);
+        const { total, remaining, max_concurrency } = gateway.session_start_limit;
+        this.debug(`[Info] Fetched Gateway Information\n        URL: ${gateway.url}\n        Recommended Shards: ${gateway.shards}\nSession Limit Information\n        Total: ${total}\n        Remaining: ${remaining}\n         Concurrency: ${max_concurrency}`);
         if (this.client.options.shards === 'auto') {
             this.manager.options.shardCount = gateway.shards;
             this.debug(`[Info] Using Discord Recommended Shard count ${gateway.shards}`);
