@@ -11,7 +11,7 @@ export class VanguardWorkerShardingStrategy extends WorkerShardingStrategy {
         if (!options.identifyThrottler)
             this.customIdentifyThrottler = undefined;
         else
-            this.customIdentifyThrottler = new options.identifyThrottler(manager);
+            this.customIdentifyThrottler = new options.identifyThrottler.class(manager, options.identifyThrottler.args);
     }
 
     private async onMessage(worker: Worker, payload: WorkerReceivePayload) {

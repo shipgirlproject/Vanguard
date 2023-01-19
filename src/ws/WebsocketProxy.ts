@@ -17,7 +17,10 @@ export interface CustomCloseData {
 export interface VanguardWorkerOptions {
 	shardsPerWorker: number | 'all',
 	workerPath: string;
-    identifyThrottler?: Constructor<VanguardIdentifyThrottler>;
+    identifyThrottler?: {
+        class: Constructor<VanguardIdentifyThrottler>,
+        args: unknown[]
+    }
 }
 
 // @ts-expect-error: private properties modified
