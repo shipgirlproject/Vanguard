@@ -95,9 +95,11 @@ export class WebsocketProxy extends Legacy {
             const shard = this.getOrAutomaticallyCreateShard(data.shardId);
             shard.ping = data.latency;
         });
-        this.manager.on(WebSocketShardEvents.Dispatch, data => {
-            const shard = this.getOrAutomaticallyCreateShard(data.shardId);
-            this.client.emit(ClientEvents.Raw, data.data, data.shardId);
+        this.manager.on(WebSocketShardEvents.Dispatch, packet => {
+            const shard = this.getOrAutomaticallyCreateShard(packet.shardId);
+            this.client.emit(ClientEvents.Raw, packet.data, packet.shardId);
+            // d.js has this kind of manager event firing for some reason that I don't know for now
+            this.emit(packet.data.t, packet.data.d, packet.shardId);
             // @ts-expect-error: forward dispatch events to the shard for d.js to work
             shard.onPacket(data.data);
         });
