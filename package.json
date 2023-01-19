@@ -1,0 +1,45 @@
+{
+  "name": "vanguard",
+  "version": "1.0.0",
+  "description": "A module to make the newer d.js ws work with v14",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build:ts": "tsc -p tsconfig.json",
+    "build:esm": "gen-esm-wrapper dist/index.js dist/index.mjs",
+    "build": "npm run build:ts && npm run build:esm",
+    "prepare": "npm run build"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@augu/eslint-config": "^3.0.0",
+    "@types/node": "^18.11.18",
+    "@types/ws": "^8.5.3",
+    "@typescript-eslint/eslint-plugin": "^5.36.1",
+    "@typescript-eslint/parser": "^5.36.1",
+    "eslint": "^8.23.0",
+    "gen-esm-wrapper": "^1.1.3",
+    "ts-node": "^10.9.1",
+    "typedoc": "^0.23.24",
+    "typescript": "^4.9.4"
+  },
+  "dependencies": {
+    "@discordjs/util": "^0.1.0",
+    "@discordjs/ws": "^0.6.1-dev.1673957032-13ce78a.0",
+    "@vladfrangu/async_event_emitter": "^2.1.3",
+    "discord-api-types": "^0.37.28",
+    "discord.js": "^14.7.1"
+  },
+  "optionalDependencies": {
+    "erlpack": "github:deivu/erlpack",
+    "zlib-sync": "^0.1.7"
+  }
+}
