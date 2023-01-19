@@ -97,6 +97,7 @@ export class WebsocketProxy extends Legacy {
         });
         this.manager.on(WebSocketShardEvents.Dispatch, data => {
             const shard = this.getOrAutomaticallyCreateShard(data.shardId);
+            this.client.emit(ClientEvents.Raw, data.data, data.shardId);
             // @ts-expect-error: forward dispatch events to the shard for d.js to work
             shard.onPacket(data.data);
         });
