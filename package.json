@@ -34,6 +34,7 @@
   "dependencies": {
     "@discordjs/util": "^0.1.0",
     "@discordjs/ws": "^0.6.1-dev.1673957032-13ce78a.0",
+    "@sapphire/async-queue": "^1.5.0",
     "discord-api-types": "^0.37.28",
     "discord.js": "^14.7.1"
   },

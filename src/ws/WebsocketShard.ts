@@ -1,5 +1,6 @@
 import { once } from 'events';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { inflate } from 'node:zlib';
 import { GatewayReceivePayload, GatewaySendPayload } from 'discord-api-types/v10';
 import {
     getInitialSendRateLimitState,
@@ -8,9 +9,12 @@ import {
     WebSocketShardEvents,
     ImportantGatewayOpcodes,
     IContextFetchingStrategy,
-    WebSocketShardDestroyOptions
+    WebSocketShardDestroyOptions,
+    SendRateLimitState
 } from '@discordjs/ws';
 import { lazy } from '@discordjs/util';
+import { AsyncQueue } from '@sapphire/async-queue';
+import type { Inflate } from 'zlib-sync';
 
 const getZlibSync = lazy(async () => import('zlib-sync').then((mod) => mod.default).catch(() => null));
 
@@ -26,10 +30,20 @@ export interface Erlpack {
 
 // @ts-expect-error: unpack has different signature, mistyped on d.js types file
 export class WebsocketShard extends WebSocketShard {
+    private useIdentifyCompress: boolean;
+    private inflate: Inflate | null;
     private erlpack: Erlpack|null;
+    private sendRateLimitState: SendRateLimitState;
+    private readonly textDecoder: TextDecoder;
+    private readonly sendQueue: AsyncQueue;
     constructor(strategy: IContextFetchingStrategy, id: number) {
         super(strategy, id);
+        this.useIdentifyCompress = false;
+        this.inflate = null;
         this.erlpack = null;
+        this.sendRateLimitState = getInitialSendRateLimitState();
+        this.textDecoder = new TextDecoder();
+        this.sendQueue = new AsyncQueue();
     }
 
     private get encoding(): Encoding {
@@ -78,7 +92,6 @@ export class WebsocketShard extends WebSocketShard {
         if (this.encoding === Encoding.ERLPACK) {
             return this.erlpack!.unpack(Buffer.from(data)) as GatewayReceivePayload;
         }
-        // @ts-expect-error: need to access private property
         const text = typeof data === 'string' ? data : this.textDecoder.decode(data);
         return JSON.parse(text) as GatewayReceivePayload;
     }
@@ -100,11 +113,9 @@ export class WebsocketShard extends WebSocketShard {
         if (this.encoding === Encoding.ERLPACK) {
             return this.decodeMessage(decompressable);
         }
-        // @ts-expect-error: need to access private property
         if (this.useIdentifyCompress) {
             return new Promise((resolve, reject) => {
-                // @ts-expect-error: need to access private property
-                this.inflate(decompressable, { chunkSize: 65_535 }, (err: unknown, result: unknown) => {
+                inflate(decompressable, { chunkSize: 65_535 }, (err: unknown, result: unknown) => {
                     if (err) {
                         reject(err);
                         return;
@@ -113,7 +124,6 @@ export class WebsocketShard extends WebSocketShard {
                 });
             });
         }
-        // @ts-expect-error: need to access private property
         if (this.inflate) {
             const l = decompressable.length;
             const flush =
@@ -124,17 +134,13 @@ export class WebsocketShard extends WebSocketShard {
 				decompressable[l - 1] === 0xff;
 
             const zlib = (await getZlibSync())!;
-            // @ts-expect-error: need to access private property
             this.inflate.push(Buffer.from(decompressable), flush ? zlib.Z_SYNC_FLUSH : zlib.Z_NO_FLUSH);
-            // @ts-expect-error: need to access private property
             if (this.inflate.err) {
-                // @ts-expect-error: need to access private property
                 this.emit('error', `${this.inflate.err}${this.inflate.msg ? `: ${this.inflate.msg}` : ''}`);
             }
             if (!flush) {
                 return null;
             }
-            // @ts-expect-error: need to access private property
             const { result } = this.inflate;
             if (!result) {
                 return null;
@@ -144,9 +150,7 @@ export class WebsocketShard extends WebSocketShard {
         this.debug([
             'Received a message we were unable to decompress',
             `isBinary: ${isBinary.toString()}`,
-            // @ts-expect-error: need to access private property
             `useIdentifyCompress: ${this.useIdentifyCompress.toString()}`,
-            // @ts-expect-error: need to access private property
             `inflate: ${Boolean(this.inflate).toString()}`,
         ]);
         return null;
@@ -161,14 +165,10 @@ export class WebsocketShard extends WebSocketShard {
             this.debug(['Tried to send a non-crucial payload before the shard was ready, waiting']);
             await once(this, WebSocketShardEvents.Ready);
         }
-        // @ts-expect-error: need to access private property
         await this.sendQueue.wait();
-        // @ts-expect-error: need to access private property
         if (--this.sendRateLimitState.remaining <= 0) {
             const now = Date.now();
-            // @ts-expect-error: need to access private property
             if (this.sendRateLimitState.resetAt > now) {
-                // @ts-expect-error: need to access private property
                 const sleepFor = this.sendRateLimitState.resetAt - now;
                 this.debug([`Was about to hit the send rate limit, sleeping for ${sleepFor}ms`]);
                 const controller = new AbortController();
@@ -179,25 +179,21 @@ export class WebsocketShard extends WebSocketShard {
                 ]);
                 if (interrupted) {
                     this.debug(['Connection closed while waiting for the send rate limit to reset, re-queueing payload']);
-                    // @ts-expect-error: need to access private property
                     this.sendQueue.shift();
                     return this.send(payload);
                 }
                 // This is so the listener from the `once` call is removed
                 controller.abort();
             }
-            // @ts-expect-error: need to access private property
             this.sendRateLimitState = getInitialSendRateLimitState();
         }
-        // @ts-expect-error: need to access private property
         this.sendQueue.shift();
         // @ts-expect-error: need to access private property
         this.connection.send(this.packMessage(payload));
     }
 
-    // so I don't need to do ts-expect-error on every debug messages here
     private debug(messages: [string, ...string[]]): void {
-        // @ts-expect-error: need to access private property
+        // @ts-expect-error: so I don't need to do ts-expect-error on every debug messages here
         return super.debug(messages);
     }
 }

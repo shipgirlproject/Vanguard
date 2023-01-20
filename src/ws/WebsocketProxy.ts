@@ -56,6 +56,7 @@ export class WebsocketProxy extends Legacy {
     private readonly workerOptions: VanguardWorkerOptions;
     private readonly disableBeforeReadyPacketQueue: boolean;
     private eventsAttached: boolean;
+    private destroyed: boolean;
     constructor(client: Client, vanguardOptions: VanguardOptions = {}) {
         super(client);
         this.manager = new Updated(this.createSharderOptions(vanguardOptions.sharderOptions));
@@ -67,6 +68,7 @@ export class WebsocketProxy extends Legacy {
         this.workerOptions = this.createWorkerOptions(vanguardOptions.workerOptions);
         this.disableBeforeReadyPacketQueue = vanguardOptions.disableBeforeReadyPacketQueue ?? false;
         this.eventsAttached = false;
+        this.destroyed = false;
     }
 
     private createSharderOptions(sharderOptions?: OptionalWebSocketManagerOptions): RequiredWebSocketManagerOptions&OptionalWebSocketManagerOptions {
@@ -92,19 +94,14 @@ export class WebsocketProxy extends Legacy {
         };
     }
 
-    private getOrAutomaticallyCreateShard(id: number): WebsocketShardProxy {
+    private ensureShard(id: number): WebsocketShardProxy {
         let shard = this.shards.get(id);
         if (!shard) {
             shard = new WebsocketShardProxy(this, id);
             this.shards.set(id, shard);
         }
         if (!shard.eventsAttached) {
-            shard.on(LegacyEvents.AllReady, (unavailable: Set<string>|undefined) => {
-                // idk why typescript complains shard can be null here
-                shard!.status = Status.Ready;
-                this.client.emit(ClientEvents.ShardReady, shard!.id, unavailable);
-                this.checkShardsReady();
-            });
+            shard.on(LegacyEvents.AllReady, (unavailable: Set<string>|undefined) => shard!.onReady(unavailable));
             shard.eventsAttached = true;
         }
         return shard;
@@ -112,46 +109,20 @@ export class WebsocketProxy extends Legacy {
 
     private attachEventsToWebsocketManager(): void {
         if (this.eventsAttached) return;
-        this.manager.on(WebSocketShardEvents.Ready, data => {
-            const shard = this.getOrAutomaticallyCreateShard(data.shardId);
-            shard.status = Status.WaitingForGuilds;
-            // @ts-expect-error: use original handling to handle ready check of d.js
-            shard.onPacket(data.data);
-        });
         this.manager.on(WebSocketShardEvents.Closed, (data: CustomCloseData) => {
-            const shard = this.getOrAutomaticallyCreateShard(data.shardId);
-            if (data.additional) {
-                if (data.additional.recover !== undefined) {
-                    shard.status = Status.Reconnecting;
-                    return this.client.emit(ClientEvents.ShardReconnecting, data.shardId);
-                }
-                shard.status = Status.Idle;
-                const event: CloseEvent = {
-                    wasClean: true,
-                    code: data.code,
-                    reason: data.additional.reason || '',
-                    target: ({} as any) // to mimic a close event cause we dont have an actual ws here
-                };
-                this.client.emit(ClientEvents.ShardDisconnect, event, data.shardId);
-            }
-        });
-        this.manager.on(WebSocketShardEvents.Resumed, data => {
-            const shard = this.getOrAutomaticallyCreateShard(data.shardId);
-            shard.status = Status.Ready;
-            // we can't know how many resumed events cause the wrapper doesn't show it
-            this.client.emit(ClientEvents.ShardResume, shard!.id, 0);
+            const shard = this.ensureShard(data.shardId);
+            shard.onClose(data);
         });
         this.manager.on(WebSocketShardEvents.HeartbeatComplete, data => {
-            const shard = this.getOrAutomaticallyCreateShard(data.shardId);
-            shard.ping = data.latency;
+            const shard = this.ensureShard(data.shardId);
+            shard.onHearbeat(data.latency);
         });
         this.manager.on(WebSocketShardEvents.Dispatch, packet => {
-            const shard = this.getOrAutomaticallyCreateShard(packet.shardId);
             this.client.emit(ClientEvents.Raw, packet.data, packet.shardId);
+            const shard = this.ensureShard(packet.shardId);
             // d.js has this kind of manager event firing for some reason that I don't know for now
             this.emit(packet.data.t, packet.data.d, packet.shardId);
-            // @ts-expect-error: forward dispatch events to the shard for d.js to work
-            shard.onPacket(packet.data);
+            shard.onDispatch(packet.data);
         });
         this.manager.on(WebSocketShardEvents.Debug, data => this.client.emit(ClientEvents.Debug, `[WS => Shard ${data.shardId} => Worker] ${data.message}`));
         this.eventsAttached = true;
@@ -177,14 +148,12 @@ export class WebsocketProxy extends Legacy {
         const strategy = new VanguardWorkerShardingStrategy(this, this.manager, this.workerOptions);
         this.manager.setStrategy(strategy);
         this.debug(`[Info] Using Vanguard worker shading strategy\n        Workers: ${this.workerOptions.shardsPerWorker}\n        File Dir: ${this.workerOptions.workerPath}\n        Using custom identify throttling: ${!!this.identifyManager}`);
-        for (const shardId of this.manager.options.shardIds) this.getOrAutomaticallyCreateShard(shardId);
+        for (const shardId of this.manager.options.shardIds) this.ensureShard(shardId);
         await this.manager.connect();
     }
 
     public destroy(): void {
-        // @ts-expect-error: need to access private property
         if (this.destroyed) return;
-        // @ts-expect-error: need to access private property
         this.destroyed = true;
         // to avoid uncaught promise
         Promise
@@ -193,11 +162,13 @@ export class WebsocketProxy extends Legacy {
     }
 
     // @ts-expect-error: need to change the private function
-    private handlePacket(packet: GatewayDispatchPayload, shard: WebsocketShardProxy): boolean {
+    public handlePacket(packet: GatewayDispatchPayload, shard: WebsocketShardProxy): boolean {
         if (packet && this.status !== Status.Ready) {
             if (!beforeReadyWhitelist.includes(packet.t)) {
-                // @ts-expect-error: need to access private property
-                if (!this.disableBeforeReadyPacketQueue) this.packetQueue.push({ packet, shard });
+                if (!this.disableBeforeReadyPacketQueue) {
+                    // @ts-expect-error: need to change the private function
+                    this.packetQueue.push({ packet, shard });
+                }
                 return false;
             }
         }
@@ -205,7 +176,7 @@ export class WebsocketProxy extends Legacy {
         return super.handlePacket(packet, (shard as unknown as WebSocketShard));
     }
 
-    private checkShardsReady(): void {
+    public checkShardsReady(): void {
         if (this.status === Status.Ready || this.shards.some(shard => shard.status !== Status.Ready)) return;
         // @ts-expect-error: need to access private property
         this.triggerClientReady();
