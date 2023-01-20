@@ -164,7 +164,7 @@ export class WebsocketProxy extends Legacy {
         this.debug(`[Info] Fetched Gateway Information\n        URL: ${gateway.url}\n        Recommended Shards: ${gateway.shards}\nSession Limit Information\n        Total: ${total}\n        Remaining: ${remaining}\n        Concurrency: ${max_concurrency}`);
         if (this.client.options.shards === 'auto') {
             this.manager.options.shardCount = gateway.shards;
-            this.manager.options.shardIds = Array.from(Array(gateway.shards).keys());
+            this.manager.options.shardIds = [...Array(gateway.shards).keys()];
             this.debug(`[Info] Using Discord Recommended Shard count ${gateway.shards}`);
         } else {
             if (isNaN(this.client.options.shardCount!)) throw new Error('Shard Count must be a number if not auto');
