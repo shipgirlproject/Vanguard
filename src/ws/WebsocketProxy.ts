@@ -162,21 +162,16 @@ export class WebsocketProxy extends Legacy {
         const gateway = await this.manager.fetchGatewayInformation();
         const { total, remaining, max_concurrency } = gateway.session_start_limit;
         this.debug(`[Info] Fetched Gateway Information\n        URL: ${gateway.url}\n        Recommended Shards: ${gateway.shards}\nSession Limit Information\n        Total: ${total}\n        Remaining: ${remaining}\n        Concurrency: ${max_concurrency}`);
-        if (this.client.options.shards === 'auto') {
-            this.manager.options.shardCount = gateway.shards;
-            this.debug(`[Info] Using Discord Recommended Shard count ${gateway.shards}`);
-        } else {
-            if (isNaN(this.client.options.shardCount!)) throw new Error('Shard Count must be a number if not auto');
-            if (!Array.isArray(this.client.options.shards)) throw new Error('Shards must be an array of number if not auto');
-            this.manager.options.shardCount = this.client.options.shardCount!;
-            this.manager.options.shardIds = this.client.options.shards as number[];
-            this.debug(`[Info] Spawn settings\n        Shards: [ ${this.manager.options.shardIds.join(', ')} ]\n        Shard Count: ${this.manager.options.shardIds.length}\n        Total Shards: ${this.client.options.shardCount}`);
-        }
+        if (isNaN(this.client.options.shardCount!)) throw new Error('Shard Count must be a number if not auto');
+        if (!Array.isArray(this.client.options.shards)) throw new Error('Shards must be an array of number if not auto');
+        this.manager.options.shardCount = this.client.options.shardCount!;
+        this.manager.options.shardIds = this.client.options.shards as number[];
+        this.debug(`[Info] Spawn settings\n        Shards: [ ${this.manager.options.shardIds.join(', ')} ]\n        Shard Count: ${this.manager.options.shardIds.length}\n        Total Shards: ${this.client.options.shardCount}`);
         this.attachEventsToWebsocketManager();
         const strategy = new VanguardWorkerShardingStrategy(this, this.manager, this.workerOptions);
         this.manager.setStrategy(strategy);
         this.debug(`[Info] Using Vanguard worker shading strategy\n        Workers: ${this.workerOptions.shardsPerWorker}\n        File Dir: ${this.workerOptions.workerPath}\n        Using custom identify throttling: ${!!this.identifyManager}`);
-        for (let i = 0; i < this.manager.options.shardCount; i++)
+        for (let i = 0; i < this.client.options.shards.length; i++)
             this.getOrAutomaticallyCreateShard(i);
         await this.manager.connect();
     }
