@@ -51,6 +51,11 @@ export class WebsocketShard extends WebSocketShard {
         return this.strategy.options.encoding as Encoding;
     }
 
+    private set encoding(type: Encoding) {
+        // @ts-expect-error: need to access private property
+        (this.strategy.options.encoding as Encoding) = type;
+    }
+
     public async connect(): Promise<void> {
         if (this.encoding === Encoding.ERLPACK) {
             try {
@@ -68,8 +73,7 @@ export class WebsocketShard extends WebSocketShard {
                     `Error Message: ${(error as Error).toString()}`,
                     'Falling back to JSON encoding / decoding'
                 ]);
-                // @ts-expect-error: need to access private property
-                (this.strategy.options.encoding as Encoding) = Encoding.JSON;
+                this.encoding = Encoding.JSON;
             }
         }
         return await super.connect();
@@ -188,8 +192,10 @@ export class WebsocketShard extends WebSocketShard {
             this.sendRateLimitState = getInitialSendRateLimitState();
         }
         this.sendQueue.shift();
+        // since I ts expect error the connection below, it's better to put this here for possible errors
+        const message = this.packMessage(payload);
         // @ts-expect-error: need to access private property
-        this.connection.send(this.packMessage(payload));
+        this.connection.send(message);
     }
 
     private debug(messages: [string, ...string[]]): void {
