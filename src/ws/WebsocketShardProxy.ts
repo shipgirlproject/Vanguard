@@ -9,12 +9,14 @@ export class WebsocketShardProxy extends WebSocketShard {
     public manager: WebsocketProxy;
     private sequence: number;
     private closeSequence: number;
+    private expectedGuilds: Set<string>;
     constructor(manager: WebsocketProxy, id: number) {
         super(manager as any, id);
         // do not change once it's set to true
         this.eventsAttached = false;
         this.sequence = -1;
         this.closeSequence = 0;
+        this.expectedGuilds = new Set();
     }
 
     public send(data: GatewaySendPayload): void {
@@ -64,10 +66,8 @@ export class WebsocketShardProxy extends WebSocketShard {
         }
         switch(packet.t) {
         case GatewayDispatchEvents.Ready: {
-            // @ts-expect-error: Private properties modified
             this.expectedGuilds = new Set(packet.d.guilds.map(d => d.id));
             this.status = Status.WaitingForGuilds;
-            // @ts-expect-error: Private properties modified
             this.debug(`[Proxy READY] Waiting for ${this.expectedGuilds.size} guilds`);
             this.emit(WebSocketShardEvents.Ready);
             break;
@@ -83,9 +83,8 @@ export class WebsocketShardProxy extends WebSocketShard {
         if (packet.s > this.sequence) this.sequence = packet.s;
         (this.manager as unknown as WebsocketProxy).handlePacket(packet, this);
         if (this.status === Status.WaitingForGuilds && packet.t === GatewayDispatchEvents.GuildCreate) {
-            // @ts-expect-error: private properties modified
             this.expectedGuilds.delete(packet.d.id);
-            // @ts-expect-error: private properties modified
+            // @ts-expect-error: access private function
             this.checkReady();
         }
     }
