@@ -92,7 +92,7 @@ export class WebsocketShard extends WebSocketShard {
         return super.destroy(options);
     }
 
-    private decodeMessage(data: Uint8Array|string): GatewayReceivePayload | null {
+    private decodeMessage(data: Uint8Array|Buffer|string): GatewayReceivePayload | null {
         if (this.encoding === Encoding.ERLPACK) {
             return this.erlpack!.unpack(Buffer.from(data)) as GatewayReceivePayload;
         }
@@ -110,21 +110,17 @@ export class WebsocketShard extends WebSocketShard {
     private async unpackMessage(data: ArrayBuffer | Buffer, isBinary: boolean): Promise<GatewayReceivePayload | null> {
         const decompressable = new Uint8Array(data);
         // Deal with no compression
-        if (!isBinary) {
-            return this.decodeMessage(decompressable);
-        }
-        // Deal with no compression but encoded with erlpack
-        if (this.encoding === Encoding.ERLPACK) {
+        if (!isBinary || this.encoding === Encoding.ERLPACK && (!this.useIdentifyCompress && !this.inflate)) {
             return this.decodeMessage(decompressable);
         }
         if (this.useIdentifyCompress) {
             return new Promise((resolve, reject) => {
-                inflate(decompressable, { chunkSize: 65_535 }, (err: unknown, result: unknown) => {
+                inflate(decompressable, { chunkSize: 65_535 }, (err, result) => {
                     if (err) {
                         reject(err);
                         return;
                     }
-                    resolve(this.decodeMessage(result as Uint8Array));
+                    resolve(this.decodeMessage(result));
                 });
             });
         }
