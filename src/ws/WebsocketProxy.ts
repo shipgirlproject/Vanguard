@@ -164,6 +164,7 @@ export class WebsocketProxy extends Legacy {
         this.debug(`[Info] Fetched Gateway Information\n        URL: ${gateway.url}\n        Recommended Shards: ${gateway.shards}\nSession Limit Information\n        Total: ${total}\n        Remaining: ${remaining}\n        Concurrency: ${max_concurrency}`);
         if (this.client.options.shards === 'auto') {
             this.manager.options.shardCount = gateway.shards;
+            this.manager.options.shardIds = Array.from(Array(gateway.shards).keys());
             this.debug(`[Info] Using Discord Recommended Shard count ${gateway.shards}`);
         } else {
             if (isNaN(this.client.options.shardCount!)) throw new Error('Shard Count must be a number if not auto');
@@ -176,9 +177,7 @@ export class WebsocketProxy extends Legacy {
         const strategy = new VanguardWorkerShardingStrategy(this, this.manager, this.workerOptions);
         this.manager.setStrategy(strategy);
         this.debug(`[Info] Using Vanguard worker shading strategy\n        Workers: ${this.workerOptions.shardsPerWorker}\n        File Dir: ${this.workerOptions.workerPath}\n        Using custom identify throttling: ${!!this.identifyManager}`);
-        const proxyToSpawn = this.client.options.shards === 'auto' ? this.manager.options.shardCount : this.client.options.shards.length;
-        for (let i = 0; i < proxyToSpawn; i++)
-            this.getOrAutomaticallyCreateShard(i);
+        for (const shardId of this.manager.options.shardIds) this.getOrAutomaticallyCreateShard(shardId);
         await this.manager.connect();
     }
 
