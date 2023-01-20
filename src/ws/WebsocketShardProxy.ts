@@ -1,5 +1,5 @@
 import { GatewaySendPayload } from 'discord-api-types/v10';
-import { WebSocketShard, Events } from 'discord.js';
+import { WebSocketShard, Status, Events } from 'discord.js';
 import { WebsocketProxy } from './WebsocketProxy';
 
 // @ts-expect-error: Private properties modified
@@ -14,6 +14,7 @@ export class WebsocketShardProxy extends WebSocketShard {
 
     public send(data: GatewaySendPayload): void {
         const proxy = this.manager as unknown as WebsocketProxy;
+        if (this.status === Status.Idle) return;
         Promise
             .resolve(proxy.manager.send(this.id, data))
             .catch(error => proxy.client.emit(Events.ShardError, error, this.id));
