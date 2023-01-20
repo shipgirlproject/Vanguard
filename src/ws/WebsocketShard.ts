@@ -138,13 +138,9 @@ export class WebsocketShard extends WebSocketShard {
             if (this.inflate.err) {
                 this.emit('error', `${this.inflate.err}${this.inflate.msg ? `: ${this.inflate.msg}` : ''}`);
             }
-            if (!flush) {
-                return null;
-            }
+            if (!flush) return null;
             const { result } = this.inflate;
-            if (!result) {
-                return null;
-            }
+            if (!result) return null;
             return this.decodeMessage(result) as GatewayReceivePayload;
         }
         this.debug([
