@@ -82,7 +82,7 @@ export class WebsocketProxy extends Legacy {
             version,
             compression
         };
-        return { ...sharderOptions, ...requiredOptions } as RequiredWebSocketManagerOptions&OptionalWebSocketManagerOptions;
+        return { ...requiredOptions, ...sharderOptions } as RequiredWebSocketManagerOptions&OptionalWebSocketManagerOptions;
     }
 
     private createWorkerOptions(options: OptionalVanguardWorkerOptions|undefined): VanguardWorkerOptions {
