@@ -15,9 +15,10 @@ import {
     WebSocketShardDestroyRecovery,
     WebSocketManager as Updated,
     OptionalWebSocketManagerOptions,
-    RequiredWebSocketManagerOptions
+    RequiredWebSocketManagerOptions,
+    CompressionMethod
 } from '@discordjs/ws';
-import { GatewayDispatchEvents } from 'discord-api-types/v10';
+import { GatewayDispatchEvents, GatewayPresenceUpdateData } from 'discord-api-types/v10';
 import { WebsocketShardProxy } from './WebsocketShardProxy';
 import { VanguardWorkerShardingStrategy } from '../strategy/VanguardWorkerShardingStrategy';
 import { OptionalVanguardWorkerOptions, VanguardIdentifyManager, VanguardOptions } from '../Vanguard';
@@ -68,14 +69,20 @@ export class WebsocketProxy extends Legacy {
         this.eventsAttached = false;
     }
 
-    private createSharderOptions(sharderOptions?: OptionalWebSocketManagerOptions): RequiredWebSocketManagerOptions|OptionalWebSocketManagerOptions&RequiredWebSocketManagerOptions {
-        const required = {
-            token: this.client.token!, // this is null so I need to redefine token in connect
+    private createSharderOptions(sharderOptions?: OptionalWebSocketManagerOptions): RequiredWebSocketManagerOptions&OptionalWebSocketManagerOptions {
+        const largeThreshold = this.client.options.ws?.large_threshold || null;
+        const version = this.client.options.ws?.version?.toString() || '10';
+        const compression = this.client.options.ws?.compress ? CompressionMethod.ZlibStream : null;
+        const requiredOptions = {
+            token: this.client.token!,
             intents: this.client.options.intents.bitfield as unknown as number,
-            rest: this.client.rest
+            rest: this.client.rest,
+            initialPresence: this.client.options.presence || null as GatewayPresenceUpdateData|null,
+            largeThreshold,
+            version,
+            compression
         };
-        if (!sharderOptions) return required;
-        return { ...required, ...sharderOptions };
+        return { ...sharderOptions, ...requiredOptions } as RequiredWebSocketManagerOptions&OptionalWebSocketManagerOptions;
     }
 
     private createWorkerOptions(options: OptionalVanguardWorkerOptions|undefined): VanguardWorkerOptions {
