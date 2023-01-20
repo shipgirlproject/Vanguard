@@ -19,8 +19,8 @@ import type { Inflate } from 'zlib-sync';
 const getZlibSync = lazy(async () => import('zlib-sync').then((mod) => mod.default).catch(() => null));
 
 export enum Encoding {
-    JSON = "json",
-    ERLPACK = "etf"
+    JSON = 'json',
+    ERLPACK = 'etf'
 }
 
 export interface Erlpack {
@@ -132,7 +132,6 @@ export class WebsocketShard extends WebSocketShard {
 				decompressable[l - 3] === 0x00 &&
 				decompressable[l - 2] === 0xff &&
 				decompressable[l - 1] === 0xff;
-
             const zlib = (await getZlibSync())!;
             this.inflate.push(Buffer.from(decompressable), flush ? zlib.Z_SYNC_FLUSH : zlib.Z_NO_FLUSH);
             if (this.inflate.err) {
@@ -155,7 +154,7 @@ export class WebsocketShard extends WebSocketShard {
     public async send(payload: GatewaySendPayload): Promise<void> {
         // @ts-expect-error: need to access private property
         if (!this.connection) {
-            throw new Error("WebSocketShard wasn't connected");
+            throw new Error('WebSocketShard wasn\'t connected');
         }
         if (this.status !== WebSocketShardStatus.Ready && !ImportantGatewayOpcodes.has(payload.op)) {
             this.debug(['Tried to send a non-crucial payload before the shard was ready, waiting']);
