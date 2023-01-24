@@ -6,6 +6,8 @@ import {
     WorkerReceivePayloadOp,
     WorkerReceivePayload
 } from '@discordjs/ws';
+import { Events } from 'discord.js';
+import { VanguardExtendedErrorData, VanguardExtendedOp } from '../worker/VanguardBootstrap';
 import { VanguardWorkerReceivePayload } from '../worker/VanguardFetchingStrategy';
 import { VanguardWorkerOptions, WebsocketProxy } from '../ws/WebsocketProxy';
 
@@ -26,8 +28,16 @@ export class VanguardWorkerShardingStrategy extends WorkerShardingStrategy {
                 op: WorkerSendPayloadOp.ShardCanIdentify,
                 nonce: payload.nonce,
             };
-            worker.postMessage(response);
-            return;
+            return worker.postMessage(response);
+        }
+        // @ts-expect-error: error op added to handle errors
+        if (payload.op === VanguardExtendedOp.Error) {
+            const data = payload as unknown as VanguardExtendedErrorData;
+            const error = new Error(data.error.message);
+            error.name = data.error.name;
+            error.stack = data.error.stack;
+            const shard = this.proxy.ensureShard(data.shardId);
+            return shard.onError(error);
         }
         // @ts-expect-error: private properties modified
         return super.onMessage(worker, payload);

@@ -10,6 +10,7 @@ import {
     ImportantGatewayOpcodes,
     IContextFetchingStrategy,
     WebSocketShardDestroyOptions,
+    WebSocketShardDestroyRecovery,
     SendRateLimitState
 } from '@discordjs/ws';
 import { lazy } from '@discordjs/util';
@@ -57,26 +58,40 @@ export class WebsocketShard extends WebSocketShard {
     }
 
     public async connect(): Promise<void> {
-        if (this.encoding === Encoding.ERLPACK) {
-            try {
-                // if erlpack is still not defined and encoding is set to erlpack
-                if (!this.erlpack) {
-                    this.erlpack = await import('erlpack');
+        try {
+            if (this.encoding === Encoding.ERLPACK) {
+                try {
+                    // if erlpack is still not defined and encoding is set to erlpack
+                    if (!this.erlpack) {
+                        this.erlpack = await import('erlpack');
+                        this.debug([
+                            'Erlpack loaded!',
+                            `Will be using Erlpack encoding / decoding`
+                        ]);
+                    }
+                } catch (error: unknown) {
                     this.debug([
-                        'Erlpack loaded!',
-                        `Will be using Erlpack encoding / decoding`
+                        'Erlpack failed to load',
+                        `Error Message: ${(error as Error).toString()}`,
+                        'Falling back to JSON encoding / decoding'
                     ]);
+                    this.encoding = Encoding.JSON;
                 }
-            } catch (error: unknown) {
-                this.debug([
-                    'Erlpack failed to load',
-                    `Error Message: ${(error as Error).toString()}`,
-                    'Falling back to JSON encoding / decoding'
-                ]);
-                this.encoding = Encoding.JSON;
             }
+            await super.connect();
+        } catch (error: unknown) {
+            this.emit('error', error);
+            this.debug([
+                'Shard failed to connect',
+                'Will try to connect after 5 seconds',
+                `Error => ${(error as Error).toString()}`
+            ]);
+            await sleep(5000);
+            if (this.status !== WebSocketShardStatus.Idle)
+                await this.destroy({ reason: 'Reconnecting', recover: WebSocketShardDestroyRecovery.Reconnect });
+            else
+                await this.connect();
         }
-        return await super.connect();
     }
 
     public destroy(options: WebSocketShardDestroyOptions = {}): Promise<void> {

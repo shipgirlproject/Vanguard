@@ -9,19 +9,22 @@ import {
 import { WebsocketShard } from '../ws/WebsocketShard';
 import { VanguardFetchingStrategy } from './VanguardFetchingStrategy';
 
+// custom string to avoid conflicts
+export enum VanguardExtendedOp {
+    Error = 'shardError'
+}
+
+export interface VanguardExtendedErrorData {
+    op: VanguardExtendedOp.Error,
+    error: {
+        name: string,
+        message: string,
+        stack: string
+    },
+    shardId: number
+}
+
 export class VanguardBootstrap extends WorkerBootstrapper {
-    private eventsAttached: boolean;
-    constructor() {
-        super();
-        this.eventsAttached = false;
-    }
-
-    protected setupThreadEvents(): void {
-        if (this.eventsAttached) return;
-        super.setupThreadEvents();
-        this.eventsAttached = true;
-    }
-
     public async bootstrap(options: Readonly<BootstrapOptions> = {}): Promise<void> {
         // Start by initializing the shards
         for (const shardId of this.data.shardIds) {
@@ -38,7 +41,20 @@ export class VanguardBootstrap extends WorkerBootstrapper {
 					parentPort!.postMessage(payload);
                 });
             }
-
+            // emit error events back to main process
+            shard.on('error', data => {
+                const error = data as Error;
+                const payload = {
+                    op: VanguardExtendedOp.Error,
+                    error: {
+                        name: error.name,
+                        message: error.message,
+                        stack: error.stack
+                    },
+                    shardId,
+                };
+                parentPort!.postMessage(payload);
+            });
             // Any additional setup the user might want to do
             await options.shardCallback?.(shard as unknown as WebSocketShard);
             this.shards.set(shardId, shard as unknown as WebSocketShard);

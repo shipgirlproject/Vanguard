@@ -94,7 +94,7 @@ export class WebsocketProxy extends Legacy {
         };
     }
 
-    private ensureShard(id: number): WebsocketShardProxy {
+    public ensureShard(id: number): WebsocketShardProxy {
         let shard = this.shards.get(id);
         if (!shard) {
             shard = new WebsocketShardProxy(this, id);
