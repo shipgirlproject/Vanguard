@@ -6,7 +6,6 @@ import {
     WorkerReceivePayloadOp,
     WorkerReceivePayload
 } from '@discordjs/ws';
-import { Events } from 'discord.js';
 import { VanguardExtendedErrorData, VanguardExtendedOp } from '../worker/VanguardBootstrap';
 import { VanguardWorkerReceivePayload } from '../worker/VanguardFetchingStrategy';
 import { VanguardWorkerOptions, WebsocketProxy } from '../ws/WebsocketProxy';

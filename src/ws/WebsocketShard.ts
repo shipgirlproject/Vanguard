@@ -80,17 +80,11 @@ export class WebsocketShard extends WebSocketShard {
             }
             await super.connect();
         } catch (error: unknown) {
-            this.emit('error', error);
+            this.onError(error as Error);
             this.debug([
                 'Shard failed to connect',
-                'Will try to connect after 5 seconds',
                 `Error => ${(error as Error).toString()}`
             ]);
-            await sleep(5000);
-            if (this.status !== WebSocketShardStatus.Idle)
-                await this.destroy({ reason: 'Reconnecting', recover: WebSocketShardDestroyRecovery.Reconnect });
-            else
-                await this.connect();
         }
     }
 
@@ -207,5 +201,9 @@ export class WebsocketShard extends WebSocketShard {
     private debug(messages: [string, ...string[]]): void {
         // @ts-expect-error: so I don't need to do ts-expect-error on every debug messages here
         return super.debug(messages);
+    }
+
+    private onError(error: Error) {
+        this.emit('error', error);
     }
 }
