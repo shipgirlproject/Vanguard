@@ -202,7 +202,7 @@ export class WebsocketShard extends WebSocketShard {
     private onError(error: Error) {
         this.debug([
             'Shard failed to connect',
-            `Error => ${(error).toString()}`,
+            `Error => ${error.toString()}`,
             `Stack => ${error.stack}`
         ]);
     }
