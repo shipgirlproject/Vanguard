@@ -81,10 +81,6 @@ export class WebsocketShard extends WebSocketShard {
             await super.connect();
         } catch (error: unknown) {
             this.onError(error as Error);
-            this.debug([
-                'Shard failed to connect',
-                `Error => ${(error as Error).toString()}`
-            ]);
         }
     }
 
@@ -204,6 +200,10 @@ export class WebsocketShard extends WebSocketShard {
     }
 
     private onError(error: Error) {
-        this.emit('error', error);
+        this.debug([
+            'Shard failed to connect',
+            `Error => ${(error).toString()}`,
+            `Stack => ${error.stack}`
+        ]);
     }
 }
