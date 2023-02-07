@@ -67,6 +67,10 @@ export class WebsocketProxy extends Legacy {
         this.destroyed = false;
     }
 
+    get reconnecting() {
+        return this.shards.some(shard => shard.status === Status.Reconnecting);
+    }
+
     private createSharderOptions(sharderOptions?: OptionalWebSocketManagerOptions): RequiredWebSocketManagerOptions&OptionalWebSocketManagerOptions {
         const largeThreshold = this.client.options.ws?.large_threshold || null;
         const version = this.client.options.ws?.version?.toString() || '10';
@@ -133,6 +137,7 @@ export class WebsocketProxy extends Legacy {
         this.manager.options.rest = this.client.rest;
         const gateway = await this.manager.fetchGatewayInformation();
         const { total, remaining, max_concurrency } = gateway.session_start_limit;
+        this.gateway = gateway.url;
         this.debug(`[Info] Fetched Gateway Information\n        URL: ${gateway.url}\n        Recommended Shards: ${gateway.shards}\nSession Limit Information\n        Total: ${total}\n        Remaining: ${remaining}\n        Concurrency: ${max_concurrency}`);
         if (this.client.options.shards === 'auto') {
             this.manager.options.shardCount = gateway.shards;
@@ -156,6 +161,7 @@ export class WebsocketProxy extends Legacy {
     public destroy(): void {
         if (this.destroyed) return;
         this.destroyed = true;
+        this.status = Status.Disconnected;
         // to avoid uncaught promise
         Promise
             .resolve(this.manager.destroy())
@@ -187,4 +193,8 @@ export class WebsocketProxy extends Legacy {
     protected debug(message: string, shard?: WebsocketShardProxy): void {
         this.client.emit(ClientEvents.Debug, `[WS => ${shard ? `Shard ${shard.id} => Proxy` : 'Proxy'}] ${message}`);
     }
+
+    // cleaned functions to avoid conflicts, tldr they should do nothing
+    private async createShards(): Promise<void> {}
+    private async reconnect(): Promise<void> {}
 }
