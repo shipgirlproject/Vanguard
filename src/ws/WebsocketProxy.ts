@@ -94,7 +94,7 @@ export class WebsocketProxy extends Legacy {
         };
     }
 
-    public setIndentifyManager(manager: VanguardIdentifyManager): void {
+    public setIdentifyManager(manager: VanguardIdentifyManager): void {
         this.identifyManager = manager;
     }
 
