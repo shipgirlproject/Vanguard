@@ -17,26 +17,17 @@ export class WebsocketShardProxy extends WebSocketShard {
         this.sequence = -1;
         this.closeSequence = 0;
         this.expectedGuilds = new Set();
-        // @ts-expect-error: deleteable props
+        // might just not make this extend and make it it's own class
+        // @ts-expect-error: delete-able props
         delete this.sessionId;
-        // @ts-expect-error: deleteable props
+        // @ts-expect-error: delete-able props
         delete this.resumeURL;
-        // @ts-expect-error: deleteable props
+        // @ts-expect-error: delete-able props
         delete this.lastPingTimestamp;
-        // @ts-expect-error: deleteable props
+        // @ts-expect-error: delete-able props
         delete this.lastHeartbeatAcked;
-        // @ts-expect-error: deleteable props
+        // @ts-expect-error: delete-able props
         delete this.closeEmitted;
-        // @ts-expect-error: deleteable props
-        delete this.connection;
-        // @ts-expect-error: deleteable props
-        delete this.inflate;
-        // @ts-expect-error: deleteable props
-        delete this.helloTimeout;
-        // @ts-expect-error: deleteable props
-        delete this.wsCloseTimeout;
-        // @ts-expect-error: deleteable props
-        delete this.connectedAt;
     }
 
     public send(data: GatewaySendPayload): void {
