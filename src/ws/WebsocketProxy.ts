@@ -65,10 +65,10 @@ export class WebsocketProxy extends Legacy {
         this.identifyManager = undefined;
         this.eventsAttached = false;
         this.destroyed = false;
-    }
-
-    get reconnecting() {
-        return this.shards.some(shard => shard.status === Status.Reconnecting);
+        // @ts-expect-error: delete-able props
+        delete this.reconnecting;
+        // @ts-expect-error: delete-able props
+        delete this.shardQueue;
     }
 
     private createSharderOptions(sharderOptions?: OptionalWebSocketManagerOptions): RequiredWebSocketManagerOptions&OptionalWebSocketManagerOptions {
@@ -133,6 +133,7 @@ export class WebsocketProxy extends Legacy {
     }
 
     private async connect(): Promise<void> {
+        if (this.destroyed) return;
         this.manager.options.token = this.client.token!;
         this.manager.options.rest = this.client.rest;
         const gateway = await this.manager.fetchGatewayInformation();
