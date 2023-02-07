@@ -51,21 +51,18 @@ export class WebsocketProxy extends Legacy {
     public readonly manager: Updated;
     // @ts-expect-error: private properties modified
     public readonly shards: Collection<number, WebsocketShardProxy>;
-    public readonly identifyManager: VanguardIdentifyManager|undefined;
     private readonly workerOptions: VanguardWorkerOptions;
     private readonly disableBeforeReadyPacketQueue: boolean;
+    public identifyManager: VanguardIdentifyManager|undefined;
     private eventsAttached: boolean;
     private destroyed: boolean;
     constructor(client: Client, vanguardOptions: VanguardOptions = {}) {
         super(client);
         this.manager = new Updated(this.createSharderOptions(vanguardOptions.sharderOptions));
         this.shards = new Collection();
-        if (vanguardOptions.identifyManager)
-            this.identifyManager = vanguardOptions.identifyManager;
-        else
-            this.identifyManager = undefined;
         this.workerOptions = this.createWorkerOptions(vanguardOptions.workerOptions);
         this.disableBeforeReadyPacketQueue = vanguardOptions.disableBeforeReadyPacketQueue ?? false;
+        this.identifyManager = undefined;
         this.eventsAttached = false;
         this.destroyed = false;
     }
@@ -91,6 +88,10 @@ export class WebsocketProxy extends Legacy {
             shardsPerWorker: options?.shardsPerWorker || 'all',
             workerPath: options?.workerPath || join(__dirname, '../worker/DefaultWorker.js')
         };
+    }
+
+    public setIndentifyManager(manager: VanguardIdentifyManager): void {
+        this.identifyManager = manager;
     }
 
     public ensureShard(id: number): WebsocketShardProxy {

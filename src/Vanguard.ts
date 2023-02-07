@@ -1,6 +1,4 @@
-import { Client, ClientOptions } from 'discord.js';
 import { OptionalWebSocketManagerOptions } from '@discordjs/ws';
-import { WebsocketProxy } from './ws/WebsocketProxy';
 
 export type Constructor<T> = new (...args: any[]) => T;
 
