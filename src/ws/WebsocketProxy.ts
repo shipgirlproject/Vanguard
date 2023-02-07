@@ -67,8 +67,6 @@ export class WebsocketProxy extends Legacy {
         this.destroyed = false;
         // @ts-expect-error: delete-able props
         delete this.reconnecting;
-        // @ts-expect-error: delete-able props
-        delete this.shardQueue;
     }
 
     private createSharderOptions(sharderOptions?: OptionalWebSocketManagerOptions): RequiredWebSocketManagerOptions&OptionalWebSocketManagerOptions {
