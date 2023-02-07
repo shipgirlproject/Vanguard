@@ -4,7 +4,6 @@ import {
     Collection,
     Client,
     Status,
-    CloseEvent,
     Events as ClientEvents,
     WebSocketManager as Legacy,
     WebSocketShardEvents as LegacyEvents,
@@ -62,7 +61,7 @@ export class WebsocketProxy extends Legacy {
         this.manager = new Updated(this.createSharderOptions(vanguardOptions.sharderOptions));
         this.shards = new Collection();
         if (vanguardOptions.identifyManager)
-            this.identifyManager = new vanguardOptions.identifyManager(this);
+            this.identifyManager = vanguardOptions.identifyManager;
         else
             this.identifyManager = undefined;
         this.workerOptions = this.createWorkerOptions(vanguardOptions.workerOptions);
@@ -130,6 +129,7 @@ export class WebsocketProxy extends Legacy {
 
     private async connect(): Promise<void> {
         this.manager.options.token = this.client.token!;
+        this.manager.options.rest = this.client.rest;
         const gateway = await this.manager.fetchGatewayInformation();
         const { total, remaining, max_concurrency } = gateway.session_start_limit;
         this.debug(`[Info] Fetched Gateway Information\n        URL: ${gateway.url}\n        Recommended Shards: ${gateway.shards}\nSession Limit Information\n        Total: ${total}\n        Remaining: ${remaining}\n        Concurrency: ${max_concurrency}`);

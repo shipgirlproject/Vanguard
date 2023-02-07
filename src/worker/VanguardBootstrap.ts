@@ -28,6 +28,7 @@ export class VanguardBootstrap extends WorkerBootstrapper {
     public async bootstrap(options: Readonly<BootstrapOptions> = {}): Promise<void> {
         // Start by initializing the shards
         for (const shardId of this.data.shardIds) {
+            // use our extended ws shard
             const shard = new WebsocketShard(new VanguardFetchingStrategy(this.data, shardId), shardId);
             for (const event of options.forwardEvents ?? Object.values(WebSocketShardEvents)) {
                 // @ts-expect-error: event types incompatible
@@ -41,20 +42,6 @@ export class VanguardBootstrap extends WorkerBootstrapper {
 					parentPort!.postMessage(payload);
                 });
             }
-            // emit error events back to main process
-            shard.on('error', data => {
-                const error = data as Error;
-                const payload = {
-                    op: VanguardExtendedOp.Error,
-                    error: {
-                        name: error.name,
-                        message: error.message,
-                        stack: error.stack
-                    },
-                    shardId,
-                };
-                parentPort!.postMessage(payload);
-            });
             // Any additional setup the user might want to do
             await options.shardCallback?.(shard as unknown as WebSocketShard);
             this.shards.set(shardId, shard as unknown as WebSocketShard);

@@ -12,26 +12,14 @@ export interface OptionalVanguardWorkerOptions {
 export interface VanguardOptions {
     workerOptions?: OptionalVanguardWorkerOptions,
     sharderOptions?: OptionalWebSocketManagerOptions,
-    identifyManager?: Constructor<VanguardIdentifyManager>
+    identifyManager?: VanguardIdentifyManager
     disableBeforeReadyPacketQueue?: boolean;
 }
 
 export abstract class VanguardIdentifyManager {
-    protected readonly proxy: WebsocketProxy;
-    constructor(proxy: WebsocketProxy) {
-        this.proxy = proxy;
+    protected readonly context: unknown;
+    constructor(context: unknown) {
+        this.context = context;
     }
     abstract waitForIdentify(shardId?: number): Promise<void>;
-    abstract additionalSetup(data?: unknown): Promise<void>
-    abstract additionalSetup(data?: unknown): void
-}
-
-export class Vanguard extends Client {
-    // @ts-expect-error: private properties modified
-    public readonly ws: WebsocketProxy;
-    constructor(options: ClientOptions, vanguardOptions: VanguardOptions = {}) {
-        super(options);
-        // @ts-expect-error: private properties modified
-        this.ws = new WebsocketProxy(this, vanguardOptions);
-    }
 }
