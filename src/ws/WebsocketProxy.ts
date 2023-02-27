@@ -78,6 +78,7 @@ export class WebsocketProxy extends Legacy {
             intents: this.client.options.intents.bitfield as unknown as number,
             rest: this.client.rest,
             initialPresence: this.client.options.presence || null as GatewayPresenceUpdateData|null,
+            buildStrategy: (manager: Updated) => new VanguardWorkerShardingStrategy(this, manager, this.workerOptions),
             largeThreshold,
             version,
             compression
@@ -150,8 +151,6 @@ export class WebsocketProxy extends Legacy {
             this.debug(`[Info] Spawn settings\n        Shards: [ ${this.manager.options.shardIds.join(', ')} ]\n        Shard Count: ${this.manager.options.shardIds.length}\n        Total Shards: ${this.client.options.shardCount}`);
         }
         this.attachEventsToWebsocketManager();
-        const strategy = new VanguardWorkerShardingStrategy(this, this.manager, this.workerOptions);
-        this.manager.setStrategy(strategy);
         this.debug(`[Info] Using Vanguard worker shading strategy\n        Workers: ${this.workerOptions.shardsPerWorker}\n        File Dir: ${this.workerOptions.workerPath}\n        Using custom identify throttling: ${!!this.identifyManager}`);
         for (const shardId of this.manager.options.shardIds) this.ensureShard(shardId);
         await this.manager.connect();
