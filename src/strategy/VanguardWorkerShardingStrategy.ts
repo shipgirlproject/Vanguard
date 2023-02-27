@@ -4,7 +4,8 @@ import {
     WorkerSendPayloadOp,
     WorkerSendPayload,
     WorkerReceivePayloadOp,
-    WorkerReceivePayload
+    WorkerReceivePayload,
+    WorkerData
 } from '@discordjs/ws';
 import { VanguardWorkerReceivePayload } from '../worker/VanguardFetchingStrategy';
 import { VanguardWorkerOptions, WebsocketProxy } from '../ws/WebsocketProxy';
@@ -15,6 +16,14 @@ export class VanguardWorkerShardingStrategy extends WorkerShardingStrategy {
     constructor(proxy: WebsocketProxy, manager: WebSocketManager, options: VanguardWorkerOptions) {
         super(manager, options);
         this.proxy = proxy;
+    }
+
+    private setupWorker(workerData: WorkerData) {
+        const data = { ...workerData };
+        // @ts-expect-error: you can't clone this
+        data.buildStrategy = undefined;
+        // @ts-expect-error: access the original function to start the threads
+        return super.setupWorker(data);
     }
 
     private async onMessage(worker: Worker, payload: WorkerReceivePayload) {

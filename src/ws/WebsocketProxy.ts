@@ -78,7 +78,7 @@ export class WebsocketProxy extends Legacy {
             intents: this.client.options.intents.bitfield as unknown as number,
             rest: this.client.rest,
             initialPresence: this.client.options.presence || null as GatewayPresenceUpdateData|null,
-            buildStrategy: () => new VanguardWorkerShardingStrategy(this, this.manager, this.workerOptions),
+            buildStrategy: (manager: Updated) => new VanguardWorkerShardingStrategy(this, manager, this.workerOptions),
             largeThreshold,
             version,
             compression
