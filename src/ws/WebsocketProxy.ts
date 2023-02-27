@@ -127,6 +127,10 @@ export class WebsocketProxy extends Legacy {
             this.emit(packet.data.t, packet.data.d, packet.shardId);
             shard.onDispatch(packet.data);
         });
+        this.manager.on(WebSocketShardEvents.Error, data => {
+            const shard = this.ensureShard(data.shardId);
+            shard.onError(data.error);
+        });
         this.manager.on(WebSocketShardEvents.Debug, data => this.client.emit(ClientEvents.Debug, `[WS => Shard ${data.shardId} => Worker] ${data.message}`));
         this.eventsAttached = true;
     }

@@ -58,30 +58,26 @@ export class WebsocketShard extends WebSocketShard {
     }
 
     public async connect(): Promise<void> {
-        try {
-            if (this.encoding === Encoding.ERLPACK) {
-                try {
-                    // if erlpack is still not defined and encoding is set to erlpack
-                    if (!this.erlpack) {
-                        this.erlpack = await import('erlpack');
-                        this.debug([
-                            'Erlpack loaded!',
-                            `Will be using Erlpack encoding / decoding`
-                        ]);
-                    }
-                } catch (error: unknown) {
+        if (this.encoding === Encoding.ERLPACK) {
+            try {
+                // if erlpack is still not defined and encoding is set to erlpack
+                if (!this.erlpack) {
+                    this.erlpack = await import('erlpack');
                     this.debug([
-                        'Erlpack failed to load',
-                        `Error Message: ${(error as Error).toString()}`,
-                        'Falling back to JSON encoding / decoding'
+                        'Erlpack loaded!',
+                        `Will be using Erlpack encoding / decoding`
                     ]);
-                    this.encoding = Encoding.JSON;
                 }
+            } catch (error: unknown) {
+                this.debug([
+                    'Erlpack failed to load',
+                    `Error Message: ${(error as Error).toString()}`,
+                    'Falling back to JSON encoding / decoding'
+                ]);
+                this.encoding = Encoding.JSON;
             }
-            await super.connect();
-        } catch (error: unknown) {
-            this.onError(error as Error);
         }
+        await super.connect();
     }
 
     public destroy(options: WebSocketShardDestroyOptions = {}): Promise<void> {
@@ -140,7 +136,9 @@ export class WebsocketShard extends WebSocketShard {
             const zlib = (await getZlibSync())!;
             this.inflate.push(Buffer.from(decompressable), flush ? zlib.Z_SYNC_FLUSH : zlib.Z_NO_FLUSH);
             if (this.inflate.err) {
-                this.emit('error', `${this.inflate.err}${this.inflate.msg ? `: ${this.inflate.msg}` : ''}`);
+                this.emit(WebSocketShardEvents.Error, {
+                    error: new Error(`${this.inflate.err}${this.inflate.msg ? `: ${this.inflate.msg}` : ''}`),
+                });
             }
             if (!flush) return null;
             const { result } = this.inflate;
@@ -197,14 +195,5 @@ export class WebsocketShard extends WebSocketShard {
     private debug(messages: [string, ...string[]]): void {
         // @ts-expect-error: so I don't need to do ts-expect-error on every debug messages here
         return super.debug(messages);
-    }
-
-    private onError(error: Error) {
-        // due to lack of handling, emit errors as debug events for now
-        this.debug([
-            'Shard errored!',
-            `Error => ${error.toString()}`,
-            `Stack => ${error.stack}`
-        ]);
     }
 }
