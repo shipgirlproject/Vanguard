@@ -58,11 +58,11 @@ export class WebsocketProxy extends Legacy {
     private destroyed: boolean;
     constructor(client: Client, vanguardOptions: VanguardOptions = {}) {
         super(client);
+        this.workerOptions = this.createWorkerOptions(vanguardOptions.workerOptions);
         this.manager = new Updated(this.createSharderOptions(vanguardOptions.sharderOptions));
         this.shards = new Collection();
-        this.workerOptions = this.createWorkerOptions(vanguardOptions.workerOptions);
-        this.disableBeforeReadyPacketQueue = vanguardOptions.disableBeforeReadyPacketQueue ?? false;
         this.identifyManager = undefined;
+        this.disableBeforeReadyPacketQueue = vanguardOptions.disableBeforeReadyPacketQueue ?? false;
         this.eventsAttached = false;
         this.destroyed = false;
         // @ts-expect-error: delete-able props
@@ -78,7 +78,7 @@ export class WebsocketProxy extends Legacy {
             intents: this.client.options.intents.bitfield as unknown as number,
             rest: this.client.rest,
             initialPresence: this.client.options.presence || null as GatewayPresenceUpdateData|null,
-            buildStrategy: (manager: Updated) => new VanguardWorkerShardingStrategy(this, manager, this.workerOptions),
+            buildStrategy: () => new VanguardWorkerShardingStrategy(this, this.manager, this.workerOptions),
             largeThreshold,
             version,
             compression
