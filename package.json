@@ -33,13 +33,13 @@
   },
   "dependencies": {
     "@discordjs/util": "^0.1.0",
-    "@discordjs/ws": "^0.6.1-dev.1673957032-13ce78a.0",
+    "@discordjs/ws": "^0.7.0",
     "@sapphire/async-queue": "^1.5.0",
-    "discord-api-types": "^0.37.28",
-    "discord.js": "^14.7.1"
+    "discord-api-types": "^0.37.36",
+    "discord.js": "^14.8.0"
   },
   "optionalDependencies": {
     "erlpack": "github:deivu/erlpack",
-    "zlib-sync": "^0.1.7"
+    "zlib-sync": "^0.1.8"
   }
 }
