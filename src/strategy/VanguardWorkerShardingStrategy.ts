@@ -18,14 +18,6 @@ export class VanguardWorkerShardingStrategy extends WorkerShardingStrategy {
         this.proxy = proxy;
     }
 
-    private setupWorker(workerData: WorkerData) {
-        const data = { ...workerData };
-        // @ts-expect-error: you can't clone this
-        data.buildStrategy = undefined;
-        // @ts-expect-error: access the original function to start the threads
-        return super.setupWorker(data);
-    }
-
     private async onMessage(worker: Worker, payload: WorkerReceivePayload) {
         // if we have a customIdentifyThrottler, use that instead
         if (this.proxy.identifyManager && payload.op === WorkerReceivePayloadOp.WaitForIdentify) {
