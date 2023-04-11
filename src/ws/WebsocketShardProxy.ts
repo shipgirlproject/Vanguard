@@ -1,6 +1,13 @@
-import { GatewayDispatchEvents, GatewayDispatchPayload, GatewaySendPayload } from 'discord-api-types/v10';
+import { GatewayCloseCodes, GatewayDispatchEvents, GatewayDispatchPayload, GatewaySendPayload } from 'discord-api-types/v10';
+import { CloseCodes } from '@discordjs/ws';
 import { WebSocketShard, WebSocketShardEvents, Status, CloseEvent, Events } from 'discord.js';
-import { WebsocketProxy, CustomCloseData } from './WebsocketProxy';
+import { WebsocketProxy } from './WebsocketProxy';
+
+const UNRESUMABLE_CLOSE_CODES = [
+    CloseCodes.Normal,
+    GatewayCloseCodes.AlreadyAuthenticated,
+    GatewayCloseCodes.InvalidSeq,
+];
 
 // @ts-expect-error: private properties modified
 export class WebsocketShardProxy extends WebSocketShard {
@@ -44,25 +51,21 @@ export class WebsocketShardProxy extends WebSocketShard {
         this.manager.checkShardsReady();
     }
 
-    // @ts-expect-error: private properties modified
-    public onClose(data: CustomCloseData): void {
-        this.status = Status.Idle;
+    // @ts-expect-error: custom on close method
+    public onClose(data: { code: number, shardId: number }): void {
         if (this.sequence !== -1)
             this.closeSequence = Number(this.sequence);
         this.sequence = -1;
-        if (!data.additional) return;
-        if (data.additional.recover !== undefined) {
-            this.status = Status.Reconnecting;
-            this.manager.client.emit(Events.ShardReconnecting, data.shardId);
+        this.emit(WebSocketShardEvents.Close, data.code);
+        if (UNRESUMABLE_CLOSE_CODES.includes(data.code)) {
+            this.status = Status.Disconnected;
+            // @ts-expect-error: emit close code only instead
+            this.manager.client.emit(Events.ShardDisconnect, data.code, data.shardId);
             return;
         }
-        const event: CloseEvent = {
-            wasClean: true,
-            code: data.code,
-            reason: data.additional.reason || '',
-            target: {} as any
-        };
-        this.manager.client.emit(Events.ShardDisconnect, event, data.shardId);
+        this.status = Status.Reconnecting;
+        // @ts-expect-error: add close code instead
+        this.manager.client.emit(Events.ShardReconnecting, data.code, data.shardId);
     }
 
     public onHearbeat(latency: number): void {

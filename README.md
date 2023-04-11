@@ -33,3 +33,11 @@ class Shipgirl extends Client {
 const client = new Shipgirl();
 client.login('token');
 ```
+
+> shardReconnecting and shardDisconnect has different parameters from d.js original client
+```js
+client.on('shardReconnecting', (code, shardId) => console.log(code, shardId));
+client.on('shardDisconnect', (code, shardId) => console.log(code, shardId));
+```
+
+> If you are using TS, please use (@ts-expect-error: reason why you are doing so) on applying this package. 

@@ -11,7 +11,6 @@ import {
 } from 'discord.js';
 import {
     WebSocketShardEvents,
-    WebSocketShardDestroyRecovery,
     WebSocketManager as Updated,
     OptionalWebSocketManagerOptions,
     RequiredWebSocketManagerOptions,
@@ -21,15 +20,6 @@ import { GatewayDispatchEvents, GatewayPresenceUpdateData } from 'discord-api-ty
 import { WebsocketShardProxy } from './WebsocketShardProxy';
 import { VanguardWorkerShardingStrategy } from '../strategy/VanguardWorkerShardingStrategy';
 import { OptionalVanguardWorkerOptions, VanguardIdentifyManager, VanguardOptions } from '../Vanguard';
-
-export interface CustomCloseData {
-    code: number;
-    shardId: number;
-    additional?: {
-        recover?: WebSocketShardDestroyRecovery;
-        reason?: string;
-    }
-}
 
 export interface VanguardWorkerOptions {
 	shardsPerWorker: number | 'all',
@@ -112,7 +102,7 @@ export class WebsocketProxy extends Legacy {
 
     private attachEventsToWebsocketManager(): void {
         if (this.eventsAttached) return;
-        this.manager.on(WebSocketShardEvents.Closed, (data: CustomCloseData) => {
+        this.manager.on(WebSocketShardEvents.Closed, data => {
             const shard = this.ensureShard(data.shardId);
             shard.onClose(data);
         });
