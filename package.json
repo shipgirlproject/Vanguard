@@ -32,14 +32,10 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "@discordjs/util": "^0.1.0",
-    "@discordjs/ws": "^0.8.0-dev.1679789487-b8b852e.0",
+    "@discordjs/util": "^0.2.0",
+    "@discordjs/ws": "^0.8.1-dev.1681258222-fcb3a1a.0",
     "@sapphire/async-queue": "^1.5.0",
-    "discord-api-types": "^0.37.36",
-    "discord.js": "^14.8.0"
-  },
-  "optionalDependencies": {
-    "erlpack": "github:deivu/erlpack",
-    "zlib-sync": "^0.1.8"
+    "discord-api-types": "^0.37.38",
+    "discord.js": "^14.9.0"
   }
 }
