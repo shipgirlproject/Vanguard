@@ -1,4 +1,4 @@
-import { OptionalWebSocketManagerOptions } from '@discordjs/ws';
+import { OptionalWebSocketManagerOptions, WorkerShardingStrategyOptions } from '@discordjs/ws';
 
 export type Constructor<T> = new (...args: any[]) => T;
 
@@ -8,7 +8,7 @@ export interface OptionalVanguardWorkerOptions {
 }
 
 export interface VanguardOptions {
-    workerOptions?: OptionalVanguardWorkerOptions,
+    workerOptions?: WorkerShardingStrategyOptions,
     sharderOptions?: OptionalWebSocketManagerOptions,
     disableBeforeReadyPacketQueue?: boolean;
 }
