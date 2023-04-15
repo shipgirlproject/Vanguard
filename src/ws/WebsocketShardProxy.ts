@@ -1,6 +1,6 @@
 import { GatewayCloseCodes, GatewayDispatchEvents, GatewayDispatchPayload, GatewaySendPayload } from 'discord-api-types/v10';
 import { CloseCodes } from '@discordjs/ws';
-import { WebSocketShard, WebSocketShardEvents, Status, CloseEvent, Events } from 'discord.js';
+import { WebSocketShard, WebSocketShardEvents, Status, Events } from 'discord.js';
 import { WebsocketProxy } from './WebsocketProxy';
 
 const UNRESUMABLE_CLOSE_CODES = [
@@ -57,7 +57,8 @@ export class WebsocketShardProxy extends WebSocketShard {
             this.closeSequence = Number(this.sequence);
         this.sequence = -1;
         this.emit(WebSocketShardEvents.Close, data.code);
-        if (UNRESUMABLE_CLOSE_CODES.includes(data.code)) {
+        // only emit event shard disconnect when manager is destroyed (discord.js ws reconnects on close code 1000 unless destroyed is called)
+        if (this.manager.destroyed && UNRESUMABLE_CLOSE_CODES.includes(data.code)) {
             this.status = Status.Disconnected;
             // @ts-expect-error: emit close code only instead
             this.manager.client.emit(Events.ShardDisconnect, data.code, data.shardId);

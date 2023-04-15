@@ -14,12 +14,12 @@ import {
     WebSocketManager as Updated,
     OptionalWebSocketManagerOptions,
     RequiredWebSocketManagerOptions,
-    CompressionMethod
+    CompressionMethod,
+    WorkerShardingStrategy
 } from '@discordjs/ws';
 import { GatewayDispatchEvents, GatewayPresenceUpdateData } from 'discord-api-types/v10';
 import { WebsocketShardProxy } from './WebsocketShardProxy';
-import { VanguardWorkerShardingStrategy } from '../strategy/VanguardWorkerShardingStrategy';
-import { OptionalVanguardWorkerOptions, VanguardIdentifyManager, VanguardOptions } from '../Vanguard';
+import { OptionalVanguardWorkerOptions, VanguardOptions } from '../Vanguard';
 
 export interface VanguardWorkerOptions {
 	shardsPerWorker: number | 'all',
@@ -43,18 +43,16 @@ export class WebsocketProxy extends Legacy {
     public readonly shards: Collection<number, WebsocketShardProxy>;
     private readonly workerOptions: VanguardWorkerOptions;
     private readonly disableBeforeReadyPacketQueue: boolean;
-    public identifyManager: VanguardIdentifyManager|undefined;
+    public destroyed: boolean;
     private eventsAttached: boolean;
-    private destroyed: boolean;
     constructor(client: Client, vanguardOptions: VanguardOptions = {}) {
         super(client);
         this.workerOptions = this.createWorkerOptions(vanguardOptions.workerOptions);
         this.manager = new Updated(this.createSharderOptions(vanguardOptions.sharderOptions));
         this.shards = new Collection();
-        this.identifyManager = undefined;
         this.disableBeforeReadyPacketQueue = vanguardOptions.disableBeforeReadyPacketQueue ?? false;
-        this.eventsAttached = false;
         this.destroyed = false;
+        this.eventsAttached = false;
         // @ts-expect-error: delete-able props
         delete this.reconnecting;
     }
@@ -68,7 +66,7 @@ export class WebsocketProxy extends Legacy {
             intents: this.client.options.intents.bitfield as unknown as number,
             rest: this.client.rest,
             initialPresence: this.client.options.presence || null as GatewayPresenceUpdateData|null,
-            buildStrategy: (manager: Updated) => new VanguardWorkerShardingStrategy(this, manager, this.workerOptions),
+            buildStrategy: (manager: Updated) => new WorkerShardingStrategy(manager, this.workerOptions),
             largeThreshold,
             version,
             compression
@@ -81,10 +79,6 @@ export class WebsocketProxy extends Legacy {
             shardsPerWorker: options?.shardsPerWorker || 'all',
             workerPath: options?.workerPath || join(__dirname, '../worker/DefaultWorker.js')
         };
-    }
-
-    public setIdentifyManager(manager: VanguardIdentifyManager): void {
-        this.identifyManager = manager;
     }
 
     public ensureShard(id: number): WebsocketShardProxy {
@@ -145,7 +139,7 @@ export class WebsocketProxy extends Legacy {
             this.debug(`[Info] Spawn settings\n        Shards: [ ${this.manager.options.shardIds.join(', ')} ]\n        Shard Count: ${this.manager.options.shardIds.length}\n        Total Shards: ${this.client.options.shardCount}`);
         }
         this.attachEventsToWebsocketManager();
-        this.debug(`[Info] Using Vanguard worker shading strategy\n        Workers: ${this.workerOptions.shardsPerWorker}\n        File Dir: ${this.workerOptions.workerPath}\n        Using custom identify throttling: ${!!this.identifyManager}`);
+        this.debug(`[Info] Using Vanguard worker shading strategy\n        Workers: ${this.workerOptions.shardsPerWorker}\n        File Dir: ${this.workerOptions.workerPath}`);
         for (const shardId of this.manager.options.shardIds) this.ensureShard(shardId);
         await this.manager.connect();
     }

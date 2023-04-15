@@ -10,14 +10,5 @@ export interface OptionalVanguardWorkerOptions {
 export interface VanguardOptions {
     workerOptions?: OptionalVanguardWorkerOptions,
     sharderOptions?: OptionalWebSocketManagerOptions,
-    identifyManager?: VanguardIdentifyManager
     disableBeforeReadyPacketQueue?: boolean;
-}
-
-export abstract class VanguardIdentifyManager {
-    protected readonly context: unknown;
-    constructor(context: unknown) {
-        this.context = context;
-    }
-    abstract waitForIdentify(shardId?: number): Promise<void>;
 }

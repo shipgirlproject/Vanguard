@@ -1,6 +1,8 @@
 ## Vanguard
 
-> A drop in replacement for Discord.JS v14 websocket system. This should not break anything in Discord.JS v14 (v13 is untested)
+> My own port or translation layer of @discordjs/ws to Discord.JS v14
+
+> Note: Some users said it works at Discord.JS v13
 
 <p align="center">
     <img src="https://azurlane.netojuu.com/images/thumb/5/50/VanguardMaid.png/800px-VanguardMaid.png"> 
