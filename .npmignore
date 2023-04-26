@@ -4,10 +4,14 @@
 assets/
 docs/
 src/
+test/
+temp/
 .eslintignore
 .eslintrc.json
 .gitattributes
 .gitignore
 index.ts
 tsconfig.json
-test
+tsup-config.json
+**.md
+**.tgz

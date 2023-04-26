@@ -4,3 +4,5 @@ dist
 .idea
 .gitattributes
 test
+**.tgz
+temp
