@@ -1,4 +1,4 @@
-docs
-dist
-node_modules
-test
+docs/
+dist/
+node_modules/
+test/
