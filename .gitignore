@@ -1,8 +1,8 @@
-package-lock.json
 node_modules
 dist
+temp
+test
 .idea
 .gitattributes
-test
 **.tgz
-temp
+package-lock.json
