@@ -25,14 +25,14 @@
     "@types/ws": "^8.5.3",
     "@typescript-eslint/eslint-plugin": "^5.59.1",
     "@typescript-eslint/parser": "^5.59.1",
-    "eslint": "^8.39.0",
+    "eslint": "^8.22.0",
     "tsup": "^6.7.0",
     "typedoc": "^0.24.6",
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "@discordjs/util": "^0.2.0",
-    "@discordjs/ws": "^0.8.1",
+    "@discordjs/util": "^0.3.1",
+    "@discordjs/ws": "^0.8.3",
     "@sapphire/async-queue": "^1.5.0",
     "discord-api-types": "^0.37.40",
     "discord.js": "^14.9.0"
