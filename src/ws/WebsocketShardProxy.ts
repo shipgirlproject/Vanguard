@@ -1,6 +1,7 @@
-import { GatewayCloseCodes, GatewayDispatchEvents, GatewayDispatchPayload, GatewaySendPayload } from 'discord-api-types/v10';
-import { CloseCodes } from '@discordjs/ws';
-import { WebSocketShard, WebSocketShardEvents, Status, Events } from 'discord.js';
+import { EventEmitter } from 'events';
+import { GatewayCloseCodes, GatewayIntentBits, GatewayDispatchEvents, GatewayDispatchPayload, GatewaySendPayload } from 'discord-api-types/v10';
+import { CloseCodes, SessionInfo } from '@discordjs/ws';
+import { WebSocketShardEvents, Status, Events } from 'discord.js';
 import { WebsocketProxy } from './WebsocketProxy';
 
 const UNRESUMABLE_CLOSE_CODES = [
@@ -9,32 +10,31 @@ const UNRESUMABLE_CLOSE_CODES = [
     GatewayCloseCodes.InvalidSeq,
 ];
 
-// @ts-expect-error: private properties modified
-export class WebsocketShardProxy extends WebSocketShard {
-    public eventsAttached: boolean;
-    // @ts-expect-error: private properties modified
+export class WebsocketShardProxy extends EventEmitter {
     public manager: WebsocketProxy;
-    private sequence: number;
-    private closeSequence: number;
-    private expectedGuilds: Set<string>;
+    public id: number;
+    public status: Status;
+    public sequence: number;
+    public closeSequence: number;
+    public ping: number;
+    public lastPingTimestamp: number;
+    public expectedGuilds: Set<string>;
+    public sessionInfo: SessionInfo|null;
+    public eventsAttached: boolean;
+    private readyTimeout: NodeJS.Timeout|null;
     constructor(manager: WebsocketProxy, id: number) {
-        super(manager as any, id);
-        // do not change once it's set to true
-        this.eventsAttached = false;
+        super();
+        this.manager = manager;
+        this.id = id;
+        this.status = Status.Idle;
         this.sequence = -1;
         this.closeSequence = 0;
+        this.ping = -1;
+        this.lastPingTimestamp = -1;
         this.expectedGuilds = new Set();
-        // might just not make this extend and make it it's own class
-        // @ts-expect-error: delete-able props
-        delete this.sessionId;
-        // @ts-expect-error: delete-able props
-        delete this.resumeURL;
-        // @ts-expect-error: delete-able props
-        delete this.lastPingTimestamp;
-        // @ts-expect-error: delete-able props
-        delete this.lastHeartbeatAcked;
-        // @ts-expect-error: delete-able props
-        delete this.closeEmitted;
+        this.sessionInfo = null;
+        this.eventsAttached = false;
+        this.readyTimeout = null;
     }
 
     public send(data: GatewaySendPayload): void {
@@ -51,7 +51,6 @@ export class WebsocketShardProxy extends WebSocketShard {
         this.manager.checkShardsReady();
     }
 
-    // @ts-expect-error: custom on close method
     public onClose(data: { code: number, shardId: number }): void {
         if (this.sequence !== -1)
             this.closeSequence = Number(this.sequence);
@@ -60,13 +59,13 @@ export class WebsocketShardProxy extends WebSocketShard {
         // only emit event shard disconnect when manager is destroyed (discord.js ws reconnects on close code 1000 unless destroyed is called)
         if (this.manager.destroyed && UNRESUMABLE_CLOSE_CODES.includes(data.code)) {
             this.status = Status.Disconnected;
-            // @ts-expect-error: emit close code only instead
-            this.manager.client.emit(Events.ShardDisconnect, data.code, data.shardId);
+            this.debug(`[Proxy Disconnect] Close Code: ${data.code}`);
+            this.manager.client.emit(Events.ShardDisconnect, (data as any), data.shardId);
             return;
         }
         this.status = Status.Reconnecting;
-        // @ts-expect-error: add close code instead
-        this.manager.client.emit(Events.ShardReconnecting, data.code, data.shardId);
+        this.debug(`[Proxy Reconnecting] Close Code: ${data.code}`);
+        this.manager.client.emit(Events.ShardReconnecting, data.shardId);
     }
 
     public onHearbeat(latency: number): void {
@@ -99,7 +98,6 @@ export class WebsocketShardProxy extends WebSocketShard {
         (this.manager as unknown as WebsocketProxy).handlePacket(packet, this);
         if (this.status === Status.WaitingForGuilds && packet.t === GatewayDispatchEvents.GuildCreate) {
             this.expectedGuilds.delete(packet.d.id);
-            // @ts-expect-error: access private function
             this.checkReady();
         }
     }
@@ -109,27 +107,37 @@ export class WebsocketShardProxy extends WebSocketShard {
     }
 
     protected debug(message: string) {
-        // @ts-expect-error: private properties modified
         this.manager.debug(message, this);
     }
 
-    // cleaned functions to avoid conflicts, tldr they should do nothing
-    public async connect(): Promise<void> {}
-    private onPacket(): void {}
-    private onOpen(): void {}
-    private onMessage(): void {}
-    private processQueue(): void {}
-    private setHelloTimeout(): void {}
-    private setWsCloseTimeout(): void {}
-    private setHeartbeatTimer(): void {}
-    private sendHeartbeat(): void {}
-    private ackHeartbeat(): void {}
-    private identify(): void {}
-    private identifyNew(): void {}
-    private identifyResume(): void {}
-    private destroy(): void {}
-    private emitClose(): void {}
-    private _send(): void {}
-    private _cleanupConnection(): void {}
-    private _emitDestroyed(): void {}
+    protected checkReady() {
+        if (this.readyTimeout) {
+            clearTimeout(this.readyTimeout);
+            this.readyTimeout = null;
+        }
+        if (!this.expectedGuilds.size) {
+            this.debug('Shard received all its guilds. Marking as fully ready.');
+            this.status = Status.Ready;
+            this.emit(WebSocketShardEvents.AllReady);
+            return;
+        }
+        const hasGuildsIntent = this.manager.client.options.intents.has(GatewayIntentBits.Guilds);
+        const { waitGuildTimeout } = this.manager.client.options;
+        this.readyTimeout = setTimeout(
+            () => {
+                this.debug(
+                    `Shard ${hasGuildsIntent ? 'did' : 'will'} not receive any more guild packets` +
+                    `${hasGuildsIntent ? ` in ${waitGuildTimeout} ms` : ''}.\nUnavailable guild count: ${
+                        this.expectedGuilds.size
+                    }`,
+                );
+
+                this.readyTimeout = null;
+                this.status = Status.Ready;
+
+                this.emit(WebSocketShardEvents.AllReady, this.expectedGuilds);
+            },
+            hasGuildsIntent ? waitGuildTimeout : 0,
+        ).unref();
+    }
 }

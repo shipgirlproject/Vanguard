@@ -12,10 +12,10 @@
 > Without extending the original client
 ```js
 import { Client } from 'discord.js';
-import { WebsocketProxy } from 'vanguard';
+import { Inject } from 'vanguard';
 
 const client = new Client();
-client.ws = new WebsocketProxy(client, options);
+Inject(client, options);
 
 client.login('token');
 ```
@@ -28,18 +28,12 @@ import { WebsocketProxy } from 'vanguard';
 class Shipgirl extends Client {
     constructor(...args) {
         super(...args);
-        this.ws = new WebsocketProxy(this, options);
+        Inject(client, options);
     }
 }
 
 const client = new Shipgirl();
 client.login('token');
-```
-
-> shardReconnecting and shardDisconnect has different parameters from d.js original client
-```js
-client.on('shardReconnecting', (code, shardId) => console.log(code, shardId));
-client.on('shardDisconnect', (code, shardId) => console.log(code, shardId));
 ```
 
 > If you are using TS, please use (@ts-expect-error: reason why you are doing so) on applying this package. 

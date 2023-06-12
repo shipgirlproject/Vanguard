@@ -1,30 +1,25 @@
 import {
-    WebSocketShard,
-    Collection,
     Client,
-    Status,
+    Collection,
     Events as ClientEvents,
-    WebSocketManager as Legacy,
-    WebSocketShardEvents as LegacyEvents,
-    GatewayDispatchPayload
+    GatewayDispatchPayload,
+    Status,
+    WebSocketShard,
+    WebSocketManager as LegacyManager,
+    WebSocketShardEvents as LegacyEvents
 } from 'discord.js';
 import {
-    WebSocketShardEvents,
-    WebSocketManager as Updated,
     OptionalWebSocketManagerOptions,
     RequiredWebSocketManagerOptions,
-    CompressionMethod,
-    WorkerShardingStrategy,
-    WorkerShardingStrategyOptions
+    SessionInfo,
+    WebSocketManager,
+    WebSocketShardEvents,
+    WorkerShardingStrategy
 } from '@discordjs/ws';
+import { EventEmitter } from 'events';
 import { GatewayDispatchEvents, GatewayPresenceUpdateData } from 'discord-api-types/v10';
 import { WebsocketShardProxy } from './WebsocketShardProxy';
-import { OptionalVanguardWorkerOptions, VanguardOptions } from '../Vanguard';
-
-export interface VanguardWorkerOptions {
-	shardsPerWorker: number | 'all',
-	workerPath: string;
-}
+import { VanguardOptions } from '../Vanguard';
 
 export const beforeReadyWhitelist = [
     GatewayDispatchEvents.Ready,
@@ -36,39 +31,46 @@ export const beforeReadyWhitelist = [
     GatewayDispatchEvents.GuildMemberRemove,
 ];
 
-// @ts-expect-error: private properties modified
-export class WebsocketProxy extends Legacy {
-    public readonly manager: Updated;
-    // @ts-expect-error: private properties modified
+export class WebsocketProxy extends EventEmitter {
+    public readonly client: Client;
+    public readonly manager: WebSocketManager;
     public readonly shards: Collection<number, WebsocketShardProxy>;
-    private readonly disableBeforeReadyPacketQueue: boolean;
+    public readonly disableBeforeReadyPacketQueue: boolean;
+    public gateway: string;
     public destroyed: boolean;
+    public status: Status;
+    private packetQueue: unknown[];
     private eventsAttached: boolean;
+    private readonly legacyHandler: (packet?: unknown, shard?: WebSocketShard) => unknown;
     constructor(client: Client, vanguardOptions: VanguardOptions = {}) {
-        super(client);
-        this.manager = new Updated(this.createSharderOptions(vanguardOptions));
+        super();
+        this.client = client;
+        this.manager = new WebSocketManager(this.createSharderOptions(vanguardOptions));
         this.shards = new Collection();
         this.disableBeforeReadyPacketQueue = vanguardOptions.disableBeforeReadyPacketQueue ?? false;
+        this.gateway = '';
         this.destroyed = false;
+        this.status = Status.Idle;
+        this.packetQueue = [];
         this.eventsAttached = false;
-        // @ts-expect-error: delete-able props
-        delete this.reconnecting;
+        // @ts-expect-error
+        this.legacyHandler = (new LegacyManager(client)).handlePacket;
     }
 
     private createSharderOptions(options: VanguardOptions): RequiredWebSocketManagerOptions&OptionalWebSocketManagerOptions {
         const { sharderOptions, workerOptions } = options;
         const largeThreshold = this.client.options.ws?.large_threshold || null;
         const version = this.client.options.ws?.version?.toString() || '10';
-        const compression = this.client.options.ws?.compress ? CompressionMethod.ZlibStream : null;
         const requiredOptions = {
             token: this.client.token!,
             intents: this.client.options.intents.bitfield as unknown as number,
             rest: this.client.rest,
             initialPresence: this.client.options.presence || null as GatewayPresenceUpdateData|null,
-            buildStrategy: (manager: Updated) => new WorkerShardingStrategy(manager, workerOptions || { shardsPerWorker: 'all' }),
+            buildStrategy: (manager: WebSocketManager) => new WorkerShardingStrategy(manager, workerOptions || { shardsPerWorker: 'all' }),
+            retrieveSessionInfo: (shardId: number) => this.ensureShard(shardId).sessionInfo,
+            updateSessionInfo: (shardId: number, sessionInfo: SessionInfo) => this.ensureShard(shardId).sessionInfo = sessionInfo,
             largeThreshold,
-            version,
-            compression
+            version
         };
         return { ...requiredOptions, ...sharderOptions } as RequiredWebSocketManagerOptions&OptionalWebSocketManagerOptions;
     }
@@ -145,33 +147,33 @@ export class WebsocketProxy extends Legacy {
             .catch(error => this.client.emit(ClientEvents.Error, error));
     }
 
-    // @ts-expect-error: need to change the private function
-    public handlePacket(packet: GatewayDispatchPayload, shard: WebsocketShardProxy): boolean {
+    public handlePacket(packet?: GatewayDispatchPayload, shard?: WebsocketShardProxy): boolean {
         if (packet && this.status !== Status.Ready) {
-            if (!beforeReadyWhitelist.includes(packet.t)) {
+            // packet.t somehow errors here for some reason
+            if (!beforeReadyWhitelist.includes(packet.t as any)) {
                 if (!this.disableBeforeReadyPacketQueue) {
-                    // @ts-expect-error: need to change the private function
                     this.packetQueue.push({ packet, shard });
                 }
                 return false;
             }
         }
-        // @ts-expect-error: need to access private property
-        return super.handlePacket(packet, (shard as unknown as WebSocketShard));
+        this.legacyHandler(packet, shard as unknown as WebSocketShard);
+        return true;
     }
 
     public checkShardsReady(): void {
         if (this.status === Status.Ready || this.shards.some(shard => shard.status !== Status.Ready)) return;
-        // @ts-expect-error: need to access private property
         this.triggerClientReady();
     }
 
-    // @ts-expect-error: d.js marks this as private, even though it's used on another class internally
-    protected debug(message: string, shard?: WebsocketShardProxy): void {
+    public debug(message: string, shard?: WebsocketShardProxy): void {
         this.client.emit(ClientEvents.Debug, `[WS => ${shard ? `Shard ${shard.id} => Proxy` : 'Proxy'}] ${message}`);
     }
 
-    // cleaned functions to avoid conflicts, tldr they should do nothing
-    private async createShards(): Promise<void> {}
-    private async reconnect(): Promise<void> {}
+    protected triggerClientReady(): void {
+        this.status = Status.Ready;
+        this.client.readyTimestamp = Date.now();
+        this.client.emit(ClientEvents.ClientReady, this.client as unknown as Client<true>);
+        this.handlePacket();
+    }
 }
