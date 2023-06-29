@@ -17,7 +17,7 @@ import {
     WorkerShardingStrategy
 } from '@discordjs/ws';
 import { EventEmitter } from 'events';
-import { GatewayDispatchEvents, GatewayPresenceUpdateData } from 'discord-api-types/v10';
+import { GatewayDispatchEvents, GatewayPresenceUpdateData, GatewaySendPayload } from 'discord-api-types/v10';
 import { WebsocketShardProxy } from './WebsocketShardProxy';
 import { VanguardOptions } from '../Vanguard';
 
@@ -135,6 +135,10 @@ export class WebsocketProxy extends EventEmitter {
         this.attachEventsToWebsocketManager();
         for (const shardId of this.manager.options.shardIds) this.ensureShard(shardId);
         await this.manager.connect();
+    }
+
+    public broadcast(data: GatewaySendPayload): void {
+        for (const shard of this.shards.values()) shard.send(data);
     }
 
     public destroy(): void {
