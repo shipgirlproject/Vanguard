@@ -13,8 +13,7 @@ import {
     RequiredWebSocketManagerOptions,
     SessionInfo,
     WebSocketManager,
-    WebSocketShardEvents,
-    WorkerShardingStrategy
+    WebSocketShardEvents
 } from '@discordjs/ws';
 import { EventEmitter } from 'events';
 import { GatewayDispatchEvents, GatewayPresenceUpdateData, GatewaySendPayload } from 'discord-api-types/v10';
@@ -58,20 +57,14 @@ export class WebsocketProxy extends EventEmitter {
     }
 
     private createSharderOptions(options: VanguardOptions): RequiredWebSocketManagerOptions&OptionalWebSocketManagerOptions {
-        const { sharderOptions, workerOptions } = options;
-        const largeThreshold = this.client.options.ws?.large_threshold || null;
-        const version = this.client.options.ws?.version?.toString() || '10';
-        const buildStrategy = this.client.options.ws?.buildStrategy || ((manager: WebSocketManager) => new WorkerShardingStrategy(manager, workerOptions || { shardsPerWorker: 'all' }));
+        const { sharderOptions } = options;
         const requiredOptions = {
             token: this.client.token!,
             intents: this.client.options.intents.bitfield as unknown as number,
             rest: this.client.rest,
             initialPresence: this.client.options.presence || null as GatewayPresenceUpdateData|null,
             retrieveSessionInfo: (shardId: number) => this.ensureShard(shardId).sessionInfo,
-            updateSessionInfo: (shardId: number, sessionInfo: SessionInfo) => this.ensureShard(shardId).sessionInfo = sessionInfo,
-            buildStrategy,
-            largeThreshold,
-            version
+            updateSessionInfo: (shardId: number, sessionInfo: SessionInfo) => this.ensureShard(shardId).sessionInfo = sessionInfo
         };
         return { ...requiredOptions, ...sharderOptions } as RequiredWebSocketManagerOptions&OptionalWebSocketManagerOptions;
     }
